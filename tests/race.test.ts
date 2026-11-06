@@ -392,6 +392,29 @@ describe('more rats', () => {
   });
 });
 
+describe('distractions in corners', () => {
+  it('draws a rat stopped, turning or running the wrong way in a corner turned to follow the curve', () => {
+    const { width, height } = sceneSize(8);
+    const t = new Track(width, height, 8);
+    const seen = new Set<string>();
+    for (let seed = 1; seed < 40 && seen.size < 4; seed++) {
+      const race = new Race({ seed, training: 0, names: NAMES, track: t });
+      while (race.phase !== 'done' && race.raceTime < 600 && seen.size < 4) {
+        race.step(1 / 30);
+        for (const r of race.rats) {
+          if (r.chuteX !== null || Math.floor(r.q) % 2 === 0) continue;
+          const kind = r.sniffing ? 'sniff' : r.napping ? 'nap' : r.mode === 'turnAround' || r.mode === 'wrongWay' ? r.mode : null;
+          if (!kind) continue;
+          const bend = 90 * (r.q - Math.floor(r.q));
+          expect(r.pose().rotate ?? 0).toBeCloseTo(bend, 6);
+          seen.add(kind);
+        }
+      }
+    }
+    expect([...seen].sort()).toEqual(['nap', 'sniff', 'turnAround', 'wrongWay']);
+  });
+});
+
 describe('race series', () => {
   it('runs 25 consecutive accelerated races with a constant entity count and fresh state', () => {
     const series = new RaceSeries(42, NAMES, () => 40, track);

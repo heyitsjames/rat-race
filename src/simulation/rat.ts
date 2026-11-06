@@ -189,7 +189,25 @@ export class Rat {
     return 90 * Math.floor(seg / 2);
   }
 
+  /**
+   * Degrees the rat has turned through its current corner (0 on a straight). A rat
+   * stopped or running the wrong way in a corner is drawn as on the straight it came
+   * from, turned by this much, so it lines up with the curve like a running rat does.
+   */
+  private bend(): number {
+    const c = this.ctx;
+    if (c.chuteX !== null || Math.floor(c.q) % 2 === 0) return 0;
+    return 90 * (c.q - Math.floor(c.q));
+  }
+
   pose(): Pose {
+    const pose = this.straightPose();
+    const bend = this.mode === 'corner' && !this.sniffing && !this.napping ? 0 : this.bend();
+    return bend ? { ...pose, rotate: (pose.rotate ?? 0) + bend } : pose;
+  }
+
+  /** Pose as on the straight the rat is on or came from (corners running add their own turn). */
+  private straightPose(): Pose {
     const c = this.ctx;
     const h = this.heading();
     const vertical = h === 90 || h === 270;
