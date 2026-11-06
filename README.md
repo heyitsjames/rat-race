@@ -1,5 +1,8 @@
 # Rat Race
 
+<img width="1106" height="828" alt="image" src="https://github.com/user-attachments/assets/545a8941-870e-409d-991b-de01cbfc0fd5" />
+
+
 A browser reconstruction of the After Dark 3.0 screensaver module **Rat Race** (©1994 Berkeley Systems, Inc.; programming by Andrew Armstrong, art by Matt Small), built from the original artwork, sounds and music recovered from the module and the shared AD 3.0 Sound library.
 
 The artwork, sounds and music are Berkeley Systems' and are **not in this repository**: you extract them from your own copy of After Dark (see [Getting the assets](#getting-the-assets)).
