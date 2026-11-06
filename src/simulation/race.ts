@@ -3,6 +3,8 @@ import {
   GATE_DELAY_DIE,
   GATE_DELAY_STEP_MS,
   INTRO_SONG_MS,
+  LANE_MATE_CLEAR_PX,
+  LANE_MATE_NEAR_PX,
   NO_MUSIC_INTRO_MS,
   PHOTO_FINISH_RANGE_PX,
   PHOTO_SHOW_MS,
@@ -84,6 +86,8 @@ export interface RaceOptions {
   competitive?: boolean;
   furCount?: number;
   silkCount?: number;
+  /** Rats in the race (default one per lane); beyond the lanes they pair up, inner lanes first. */
+  rats?: number;
 }
 
 export function cleanName(name: string): string {
@@ -116,6 +120,8 @@ export class Race {
   private readonly introPlaying: () => boolean;
   private gatesOpenedMs = 0;
   private events: RaceEvent[];
+  /** Rats sharing a lane, and whether they are currently side by side. */
+  private readonly mates: { a: Rat; b: Rat; near: boolean }[] = [];
 
   constructor(opts: RaceOptions) {
     this.seed = opts.seed;
@@ -129,14 +135,22 @@ export class Race {
     const silks = this.random.shuffle([...Array(opts.silkCount ?? palette.silks.length).keys()]);
     const furCount = opts.furCount ?? palette.furs.length;
     this.rats = [];
-    for (let lane = 0; lane < this.track.lanes; lane++) {
-      this.rats.push(
-        new Rat(
-          { name: names[lane % names.length], fur: this.random.int(furCount), silk: silks[lane % silks.length], lane },
+    const lanes = this.track.lanes;
+    const doubled = Math.max(0, Math.min(lanes, (opts.rats ?? lanes) - lanes));
+    for (let lane = 0; lane < lanes; lane++) {
+      const sides: (-1 | 0 | 1)[] = lane < doubled ? [-1, 1] : [0];
+      const mates: Rat[] = [];
+      for (const side of sides) {
+        const i = this.rats.length;
+        const rat = new Rat(
+          { name: names[i % names.length], fur: this.random.int(furCount), silk: silks[i % silks.length], lane, side },
           this.track,
           this.random,
-        ),
-      );
+        );
+        this.rats.push(rat);
+        mates.push(rat);
+      }
+      if (mates.length === 2) this.mates.push({ a: mates[0], b: mates[1], near: true });
     }
     const gateTimer = this.random.int(GATE_DELAY_DIE) * GATE_DELAY_STEP_MS;
     const intro = this.withMusic ? INTRO_SONG_MS : NO_MUSIC_INTRO_MS;
@@ -280,7 +294,22 @@ export class Race {
     // what they are doing and run home (owner's recollection of the original). There is
     // no time limit: even Drop Out finishes on its own (see the Drop Out test).
     if (this.behavioursOn && this.settled) this.behavioursOn = false;
+    this.slideLaneMates();
   }
+
+  /** Drawing only: lane-mates head for their halves of the lane while near each other, else the middle. */
+  private slideLaneMates(): void {
+    for (const pair of this.mates) {
+      const { a, b } = pair;
+      if (!a.visible || !b.visible) pair.near = false;
+      else {
+        const gap = Math.abs(a.alongPx(this.track) - b.alongPx(this.track));
+        pair.near = pair.near ? gap < LANE_MATE_CLEAR_PX : gap < LANE_MATE_NEAR_PX;
+      }
+      a.aside = b.aside = pair.near;
+    }
+  }
+
 
   /**
    * How many finishers decide the race, after which everyone heads home: the winner,
@@ -303,6 +332,8 @@ export interface SeriesOptions {
   introPlaying?: () => boolean;
   /** Competitive mode for the next race (read as each race is set up). */
   competitive?: () => boolean;
+  /** Rats per race (default one per lane). */
+  rats?: () => number;
 }
 
 /** Runs races back to back with reproducible per-race seeds. */
@@ -345,6 +376,7 @@ export class RaceSeries {
       withMusic: this.options.withMusic ?? true,
       introPlaying: this.options.introPlaying,
       competitive: this.options.competitive?.() ?? false,
+      rats: this.options.rats?.(),
     });
   }
 

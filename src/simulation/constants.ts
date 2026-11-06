@@ -168,10 +168,40 @@ export const CORNER_DISTRACTIONS = true;
 
 /**
  * Share of each lane's gate head start that its four corners repay (FAIR_CORNERS):
- * 1 repays it exactly. Tried at 1.05 and 1.1: the slower Training levels came out
- * flatter but Cracked tipped toward the inside lane, so it stays at 1. Measured with
- * tools/lane-slope.ts over 1,000 races per level and rat count (4-8): the worst cells
- * leave the outer lanes 1-2 points of win share ahead (e.g. 8 rats at Grade School,
- * 14.2% outside vs 11.5% inside, fair 12.5%), down from up to 9 points.
+ * 1 repays it exactly. Training levels can set their own (TrainingRow.cornerRepay);
+ * this is the default, used by Professional and Cracked.
+ *
+ * Measured with tools/lane-mates-fairness.ts, 1,000 races per level and rat count
+ * (4-8 rats on up to 4 lanes, two to a lane past 4): at 1 everywhere the slower
+ * levels leaned 1-2 points of win share toward the outside lanes (25 of 30 cells
+ * within |z| < 2, all misses outward); at 1.05 everywhere Professional and Cracked
+ * leaned the same amount inward instead. 1.05 for Drop Out to Collegiate and 1 for
+ * the rest leaves 3 of 30 cells out (|z| 2.3-2.8) with no lean either way overall.
  */
 export const CORNER_REPAY = 1;
+
+/**
+ * Two rats per lane once a race has more rats than MAX_TRACK_LANES (track.ts).
+ * Lane-mates race on the lane's centre line (the simulation never sees the
+ * offset, so sharing a lane changes no distances); only the drawing moves them
+ * aside, each to its own half of the lane, while they are near each other along
+ * the lane, and back to the middle once they are clear.
+ *
+ * A rat only moves sideways on its own steps (forward, or backward running the
+ * wrong way), so it walks over diagonally with its gait playing, leaning a little
+ * toward where it is going. A rat that is not moving (sniffing, napping, turning
+ * round, waiting) holds where it is, overlap and all, until it moves again.
+ */
+/** Sideways step while side by side, in lanes (inner mate -, outer mate +). */
+export const LANE_MATE_OFFSET = 0.25;
+/** Steps a rat takes to walk the full LANE_MATE_OFFSET over (10 x STRIDE_PX = 70 px of travel). */
+export const LANE_MATE_DRIFT_STEPS = 10;
+/** Lean (degrees) while walking over: hints at the direction, shallower than the true diagonal. */
+export const LANE_MATE_LEAN_DEG = 2.5;
+/**
+ * Lane-mates move aside when their centres along the lane come within this: about a
+ * body length (60 px) plus the drift's 70 px, so they are aside before they overlap...
+ */
+export const LANE_MATE_NEAR_PX = 130;
+/** ...and head back to the middle only beyond this, so a rat at the edge does not flicker. */
+export const LANE_MATE_CLEAR_PX = 145;

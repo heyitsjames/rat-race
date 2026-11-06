@@ -2,6 +2,9 @@ import { createActor, type Actor, type SnapshotFrom } from 'xstate';
 import animations from '../../data/animations.json';
 import layout from '../../data/scene-layout.json';
 import {
+  LANE_MATE_DRIFT_STEPS,
+  LANE_MATE_LEAN_DEG,
+  LANE_MATE_OFFSET,
   LANE_START_DELAY_MS,
   NAP_EXTRA_MS,
   NAP_STAND_FRAME,
@@ -21,6 +24,8 @@ export interface RatIdentity {
   fur: number;
   silk: number;
   lane: number;
+  /** Side of the lane while next to a lane-mate: -1 inner half, 1 outer, 0 has the lane alone. */
+  side?: -1 | 0 | 1;
 }
 
 export interface Pose {
@@ -61,11 +66,24 @@ export function cornerPose(heading: number, k: number): Pose {
   return orient({ anim: vertical ? 'turn-up-left' : 'turn-right-up', frame, flipX: false, flipY: false }, h);
 }
 
+/** Whether a step changed the rat's place on the track. */
+function moved(before: { q: number; chuteX: number | null }, after: { q: number; chuteX: number | null }): boolean {
+  return before.q !== after.q || before.chuteX !== after.chuteX;
+}
+
 export class Rat {
   readonly name: string;
   readonly fur: number;
   readonly silk: number;
   readonly lane: number;
+  /** Side of the lane while next to a lane-mate (-1 inner, 1 outer, 0 alone). */
+  readonly side: -1 | 0 | 1;
+  /** Drawn sideways offset from the lane's centre line, in lanes (never affects the race). */
+  offset: number;
+  /** Whether the rat should be on its side of the lane (set by the race); it walks there on its own steps. */
+  aside: boolean;
+  /** Moved sideways on its latest step and not there yet: drawn leaning toward its target. */
+  private leaning = false;
   readonly actor: Actor<typeof ratMachine>;
   /** Race-clock ms of the next step. */
   nextStep: number;
@@ -77,6 +95,10 @@ export class Rat {
     this.fur = id.fur;
     this.silk = id.silk;
     this.lane = id.lane;
+    this.side = id.side ?? 0;
+    // Lane-mates start side by side in the same gate.
+    this.offset = this.side * LANE_MATE_OFFSET;
+    this.aside = this.side !== 0;
     const gateX = track.gateNoseX(id.lane) - NOSE;
     this.actor = createActor(ratMachine, {
       input: { lane: id.lane, gateX, q: track.qAtBottomX(gateX), startGait: random.int(6) },
@@ -123,9 +145,17 @@ export class Rat {
     return this.ctx.interval;
   }
 
-  /** The original never changes lanes. */
+  /** Lane drawn: the original never changes lanes; lane-mates step aside to pass. */
   get v(): number {
-    return this.lane;
+    return this.lane + this.offset;
+  }
+
+  /** Centre's distance (px) along the lane's centre line from the start of the bottom straight. */
+  alongPx(track: Track): number {
+    const c = this.ctx;
+    if (c.chuteX !== null) return c.chuteX - (track.margin + track.outerRadius);
+    if (c.q < 0) return c.q * track.segmentLength(0, this.lane);
+    return track.distance(0, c.q, this.lane);
   }
 
   get chuteX(): number | null {
@@ -166,20 +196,46 @@ export class Rat {
     for (let i = 0; i < MAX_CATCH_UP_STEPS && this.mode !== 'gone' && now >= this.nextStep; i++) {
       const at = this.nextStep;
       const before = this.ctx.chuteX === null ? this.ctx.q : -Infinity;
+      const beforeAt = { q: this.ctx.q, chuteX: this.ctx.chuteX };
       this.actor.send({ type: 'STEP', env });
       const extra = this.napping ? NAP_EXTRA_MS : 0;
       this.nextStep = Math.max(at, now - MAX_STEP_LAG_MS) + this.ctx.interval + extra;
       const after = this.ctx.chuteX === null ? this.ctx.q : -Infinity;
+      this.drift(moved(beforeAt, this.ctx));
       const racing = this.mode === 'run' || this.mode === 'exit';
       if (crossed === null && !this.finished && racing && before < goal && after >= goal) crossed = at;
     }
     return crossed;
   }
 
+  /** Where the rat is heading across its lane (offset in lanes). */
+  get targetOffset(): number {
+    return this.aside ? this.side * LANE_MATE_OFFSET : 0;
+  }
+
+  /** A step that moved the rat also walks it a little toward its target across the lane; standing still holds it. */
+  private drift(stepped: boolean): void {
+    const gap = this.targetOffset - this.offset;
+    if (!stepped || gap === 0 || this.mode === 'exit') {
+      this.leaning = false;
+      return;
+    }
+    const step = LANE_MATE_OFFSET / LANE_MATE_DRIFT_STEPS;
+    this.offset = Math.abs(gap) <= step + 1e-9 ? this.targetOffset : this.offset + Math.sign(gap) * step;
+    this.leaning = this.offset !== this.targetOffset;
+  }
+
+  /** Lean (degrees anticlockwise) while walking across the lane: outward is a right turn running, a left turn backing the wrong way. */
+  private lean(): number {
+    if (!this.leaning || this.sniffing || this.napping || this.mode === 'turnAround') return 0;
+    const out = Math.sign(this.targetOffset - this.offset);
+    return out * LANE_MATE_LEAN_DEG * (this.mode === 'wrongWay' ? 1 : -1);
+  }
+
   position(track: Track): TrackPoint {
     const c = this.ctx;
-    if (c.chuteX !== null) return { x: c.chuteX, y: track.bottomLaneY(this.lane), heading: 0 };
-    return track.point(c.q, this.lane);
+    if (c.chuteX !== null) return { x: c.chuteX, y: track.bottomLaneY(this.v), heading: 0 };
+    return track.point(c.q, this.v);
   }
 
   /** Direction of the straight the rat is on (or of the corner's entry). */
@@ -202,7 +258,7 @@ export class Rat {
 
   pose(): Pose {
     const pose = this.straightPose();
-    const bend = this.mode === 'corner' && !this.sniffing && !this.napping ? 0 : this.bend();
+    const bend = (this.mode === 'corner' && !this.sniffing && !this.napping ? 0 : this.bend()) + this.lean();
     return bend ? { ...pose, rotate: (pose.rotate ?? 0) + bend } : pose;
   }
 

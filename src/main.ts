@@ -9,7 +9,7 @@ import { MacSlider, VOLUME_STEPS, volumeIcon, volumeStep } from './menu';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { RaceSeries, type RaceEvent } from './simulation/race';
 import { FixedStepper, STEP_SECONDS } from './simulation/session';
-import { MAX_LANES, MIN_LANES, Track } from './simulation/track';
+import { lanesFor, MAX_LANES, MIN_LANES, Track } from './simulation/track';
 import { TRAINING_LEVELS, trainingLabel } from './simulation/training';
 
 const params = new URLSearchParams(location.search);
@@ -52,15 +52,17 @@ async function main(): Promise<void> {
   const seedParam = Number(params.get('seed'));
   const newSeed = () => (Number.isFinite(seedParam) && params.has('seed') ? seedParam : (Math.random() * 2 ** 32) >>> 0);
   // Lanes of the current series: the Rats setting as it was when the series began.
-  let lanes = settings.rats;
+  let lanes = lanesFor(settings.rats);
   let vp: Viewport = computeViewport(innerWidth, innerHeight, devicePixelRatio || 1, lanes);
   const makeSeries = () => {
-    lanes = settings.rats;
+    lanes = lanesFor(settings.rats);
+    const rats = settings.rats;
     vp = computeViewport(innerWidth, innerHeight, devicePixelRatio || 1, lanes);
     return new RaceSeries(newSeed(), labels['2000'], () => settings.training, new Track(vp.width, vp.height, lanes), {
       once: true,
       introPlaying: () => audio.currentMusic === 'intro',
       competitive: () => settings.competitive,
+      rats: () => rats,
     });
   };
   let series = makeSeries();

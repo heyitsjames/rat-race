@@ -28,6 +28,13 @@ const T = layout.track;
 export const DEFAULT_LANES = T.lanes;
 export const MIN_LANES = 3;
 export const MAX_LANES = 8;
+/** Most lanes drawn: bigger fields put two rats in a lane (see LANE_MATE_OFFSET). */
+export const MAX_TRACK_LANES = 4;
+
+/** Lanes for a race of `rats` rats: one each up to MAX_TRACK_LANES, then shared. */
+export function lanesFor(rats: number): number {
+  return Math.min(rats, MAX_TRACK_LANES);
+}
 
 /**
  * Logical scene size for a race of `lanes` rats. Three lanes is the original

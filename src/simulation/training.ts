@@ -20,15 +20,21 @@ export interface TrainingRow {
    * round; only the added Cracked level sets its own.
    */
   turnBack?: number;
+  /**
+   * Remake addition: share of each lane's gate head start its corners repay
+   * (CORNER_REPAY in constants.ts when unset). The slower levels need a little
+   * more than an exact repay to keep the outer lanes from edging ahead.
+   */
+  cornerRepay?: number;
   /** False for levels added by this remake. */
   original: boolean;
 }
 
 export const TRAINING_TABLE: readonly TrainingRow[] = [
-  { min: 0, label: 'Drop Out', turnAround: 450, nap: 150, sniff: 50, original: true },
-  { min: 20, label: 'Grade School', turnAround: 60, nap: 20, sniff: 700, original: true },
-  { min: 40, label: 'High School', turnAround: 50, nap: 250, sniff: 500, original: true },
-  { min: 60, label: 'Collegiate', turnAround: 50, nap: 100, sniff: 350, original: true },
+  { min: 0, label: 'Drop Out', turnAround: 450, nap: 150, sniff: 50, cornerRepay: 1.05, original: true },
+  { min: 20, label: 'Grade School', turnAround: 60, nap: 20, sniff: 700, cornerRepay: 1.05, original: true },
+  { min: 40, label: 'High School', turnAround: 50, nap: 250, sniff: 500, cornerRepay: 1.05, original: true },
+  { min: 60, label: 'Collegiate', turnAround: 50, nap: 100, sniff: 350, cornerRepay: 1.05, original: true },
   { min: 80, label: 'Professional', turnAround: 25, nap: 75, sniff: 200, original: true },
   /**
    * Not in the original: the top of the slider. Rare, short distractions, and a

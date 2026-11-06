@@ -180,15 +180,18 @@ function moveAlong(c: Pick<RatContext, 'q' | 'chuteX' | 'lane'>, px: number, tra
   return { q: q + px / len, chuteX };
 }
 
+/** Share of the gate head start the corners repay at this Training level (CORNER_REPAY unless the level sets its own). */
+const cornerRepay = (row: TrainingRow) => row.cornerRepay ?? CORNER_REPAY;
+
 /**
  * FAIR_CORNERS timing for corner `seg` in this lane at a straight-line pace of
  * `pace` ms per stride: stride-sized steps, taking the time the rat needs to
- * run the inside lane's corner plus CORNER_REPAY x a quarter of its gate stagger.
+ * run the inside lane's corner plus the level's corner repay (cornerRepay) x a quarter of its gate stagger.
  */
-function cornerTiming(track: Track, lane: number, seg: number, pace: number) {
+function cornerTiming(track: Track, lane: number, seg: number, pace: number, repay: number) {
   const cornerPx = track.segmentLength(seg, lane);
   const stagger = track.gateNoseX(lane) - track.gateNoseX(0);
-  const fairPx = track.segmentLength(seg, 0) + (CORNER_REPAY * stagger) / 4;
+  const fairPx = track.segmentLength(seg, 0) + (repay * stagger) / 4;
   const steps = Math.max(CORNER_FRAMES, Math.round(cornerPx / STRIDE_PX));
   return { steps, fairStep: fairPx / steps, interval: fairPx / (STRIDE_PX / pace) / steps };
 }
@@ -198,11 +201,11 @@ function cornerTiming(track: Track, lane: number, seg: number, pace: number) {
  * count their length, corners their fair length (cornerTiming), so every lane's
  * finish is the same progress away. Positions in the start chute count back from q 0.
  */
-function fairProgress(track: Track, lane: number, q: number, chuteX: number | null = null): number {
+function fairProgress(track: Track, lane: number, q: number, repay: number, chuteX: number | null = null): number {
   const left = track.margin + track.outerRadius;
   const gateX = track.gateNoseX(lane) - NOSE;
   if (chuteX !== null) return chuteX - gateX;
-  const corner = track.segmentLength(1, 0) + (CORNER_REPAY * (track.gateNoseX(lane) - track.gateNoseX(0))) / 4;
+  const corner = track.segmentLength(1, 0) + (repay * (track.gateNoseX(lane) - track.gateNoseX(0))) / 4;
   let p = left - gateX;
   // just behind the start of the first straight (a step back from q 0) still counts as straight
   if (q < 0) return p + q * track.segmentLength(0, lane);
@@ -212,9 +215,9 @@ function fairProgress(track: Track, lane: number, q: number, chuteX: number | nu
 }
 
 /** Inverse of fairProgress on the loop (progress at or past q 0). */
-function qAtProgress(track: Track, lane: number, p: number): number {
+function qAtProgress(track: Track, lane: number, p: number, repay: number): number {
   const left = track.margin + track.outerRadius;
-  const corner = track.segmentLength(1, 0) + (CORNER_REPAY * (track.gateNoseX(lane) - track.gateNoseX(0))) / 4;
+  const corner = track.segmentLength(1, 0) + (repay * (track.gateNoseX(lane) - track.gateNoseX(0))) / 4;
   let rest = p - (left - (track.gateNoseX(lane) - NOSE));
   for (let s = 0; ; s++) {
     const len = (s % 2 ? corner : track.segmentLength(s, lane)) || 1;
@@ -229,10 +232,10 @@ function qAtProgress(track: Track, lane: number, p: number): number {
  * straight 65 px in (WRONG_WAY_LIMIT_PX), and each corner's entry. A rat behind the
  * first of them (in the chute) turns back at once.
  */
-function wrongWayLimit(track: Track, p: number): number {
+function wrongWayLimit(track: Track, p: number, repay: number): number {
   let best = -Infinity;
   for (let s = 0; s <= 8; s++) {
-    const at = fairProgress(track, 0, s) + (s % 2 === 0 && s > 0 ? WRONG_WAY_LIMIT_PX : 0);
+    const at = fairProgress(track, 0, s, repay) + (s % 2 === 0 && s > 0 ? WRONG_WAY_LIMIT_PX : 0);
     if (at <= p + 1e-9) best = Math.max(best, at);
   }
   return best === -Infinity ? p : best;
@@ -249,8 +252,9 @@ const inCorner = (c: Pick<RatContext, 'q' | 'chuteX'>) => c.chuteX === null && M
  */
 function fairWrongWayStep(context: RatContext, env: StepEnv): Partial<RatContext> {
   const { track } = env;
-  const before = fairProgress(track, context.lane, context.q, context.chuteX);
-  const limit = wrongWayLimit(track, before);
+  const repay = cornerRepay(env.training);
+  const before = fairProgress(track, context.lane, context.q, repay, context.chuteX);
+  const limit = wrongWayLimit(track, before, repay);
   let { cornerFair, straightInterval, cornerInterval, cornerSteps, cornerFairStep, counter } = context;
   const corner = inCorner(context);
   // checkpoint on the fair-distance cadence: gait counter on straights, cornerFair in corners
@@ -261,7 +265,7 @@ function fairWrongWayStep(context: RatContext, env: StepEnv): Partial<RatContext
     const pace = corner ? straightInterval : context.interval;
     const c = checkpoint({ ...context, interval: pace }, env, false);
     straightInterval = c.interval;
-    if (corner && c.interval !== pace) cornerInterval = cornerTiming(track, context.lane, Math.floor(context.q), c.interval).interval;
+    if (corner && c.interval !== pace) cornerInterval = cornerTiming(track, context.lane, Math.floor(context.q), c.interval, repay).interval;
     if (c.outcome) {
       return {
         counter: Math.max(0, counter),
@@ -300,7 +304,7 @@ function fairWrongWayStep(context: RatContext, env: StepEnv): Partial<RatContext
     interval = straightInterval;
     if (Math.floor(q) < seg && seg > 0) {
       // back into the corner behind: corner steps from its far end
-      const t = cornerTiming(track, context.lane, seg - 1, straightInterval);
+      const t = cornerTiming(track, context.lane, seg - 1, straightInterval, repay);
       ({ steps: cornerSteps, interval: cornerInterval, fairStep: cornerFairStep } = t);
       cornerFair = (counter + 1) * STRIDE_PX;
       q = seg - 1 + (cornerSteps - 1) / cornerSteps;
@@ -308,8 +312,8 @@ function fairWrongWayStep(context: RatContext, env: StepEnv): Partial<RatContext
       interval = cornerInterval;
     }
   }
-  if (fairProgress(track, context.lane, q) < limit) {
-    return { q: qAtProgress(track, context.lane, limit), counter: Math.max(0, counter), interval, straightInterval, cornerInterval, cornerSteps, cornerFairStep, cornerFair, outcome: 'turnAround' };
+  if (fairProgress(track, context.lane, q, repay) < limit) {
+    return { q: qAtProgress(track, context.lane, limit, repay), counter: Math.max(0, counter), interval, straightInterval, cornerInterval, cornerSteps, cornerFairStep, cornerFair, outcome: 'turnAround' };
   }
   return { q, counter, interval, straightInterval, cornerInterval, cornerSteps, cornerFairStep, cornerFair };
 }
@@ -506,7 +510,7 @@ export const ratMachine = setup({
         if (FAIR_CORNERS) {
           // Inside lane's corner plus a quarter of this lane's gate head start, at the rat's own pace,
           // in stride-sized steps.
-          const t = cornerTiming(env.track, context.lane, q, context.interval);
+          const t = cornerTiming(env.track, context.lane, q, context.interval, cornerRepay(env.training));
           cornerSteps = t.steps;
           interval = t.interval;
           cornerFairStep = t.fairStep;
@@ -561,7 +565,7 @@ export const ratMachine = setup({
           const c = checkpoint({ ...context, interval: straightInterval }, env, true);
           if (c.interval !== straightInterval) {
             straightInterval = c.interval;
-            cornerInterval = cornerTiming(env.track, context.lane, start, straightInterval).interval;
+            cornerInterval = cornerTiming(env.track, context.lane, start, straightInterval, cornerRepay(env.training)).interval;
           }
           if (c.outcome) {
             // distractions run at the rat's straight-line pace, so they last as long as anywhere else
@@ -616,7 +620,7 @@ export const ratMachine = setup({
       if (context.counter < TURN_AROUND_LAST_FRAME) return { counter: context.counter + 1 };
       if (FAIR_CORNERS && inCorner(context) && event.type === 'STEP') {
         // carry on through the corner (either way) at the turn-around pace
-        const t = cornerTiming(event.env.track, context.lane, Math.floor(context.q), context.straightInterval);
+        const t = cornerTiming(event.env.track, context.lane, Math.floor(context.q), context.straightInterval, cornerRepay(event.env.training));
         context = { ...context, cornerInterval: t.interval, cornerFairStep: t.fairStep, cornerSteps: t.steps, cornerFair: STRIDE_PX };
         if (context.reversed) return { done: true, cornerInterval: t.interval, cornerFairStep: t.fairStep, cornerSteps: t.steps, cornerFair: STRIDE_PX };
         const sniff = pickSniff(event.env.random, context.lastSniff);
@@ -647,7 +651,7 @@ export const ratMachine = setup({
           const c = checkpoint({ ...context, interval: straightInterval }, env, false);
           if (c.interval !== straightInterval) {
             straightInterval = c.interval;
-            cornerInterval = cornerTiming(env.track, context.lane, seg, straightInterval).interval;
+            cornerInterval = cornerTiming(env.track, context.lane, seg, straightInterval, cornerRepay(env.training)).interval;
           }
           if (c.outcome) {
             return {
