@@ -385,22 +385,22 @@ select:focus-visible {
   margin-top: 8px;
 }
 
-.mac-window button {
+:is(.mac-window, .race-end) button {
   color: var(--mac-ink);
   background: var(--mac-paper);
   border: 1px solid var(--mac-ink);
 }
 
-.mac-window button:hover {
+:is(.mac-window, .race-end) button:hover {
   background: var(--mac-paper);
 }
 
-.mac-window button:active {
+:is(.mac-window, .race-end) button:active {
   color: var(--mac-paper);
   background: var(--mac-ink);
 }
 
-.mac-window button:focus-visible {
+:is(.mac-window, .race-end) button:focus-visible {
   outline: 1px dotted var(--mac-ink);
   outline-offset: 1px;
 }
@@ -443,4 +443,35 @@ select:focus-visible {
   border: 3px solid var(--mac-ink);
   border-radius: 10px;
   line-height: 0;
+}
+
+/* Restart and New Race, under the results board once the race is over: the menu's
+   Run Race button, at the menu's size. */
+.race-end {
+  --mac-ink: #000;
+  --mac-paper: #fff;
+  --mac-face: #ddd;
+  position: fixed;
+  z-index: 5;
+  display: flex;
+  gap: 10px;
+  color: var(--mac-ink);
+  transform: translateX(-50%) scale(var(--menu-scale, 1));
+  transform-origin: top center;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  user-select: none;
+}
+
+.race-end[hidden] {
+  display: none;
+}
+
+.race-end .mac-default-ring {
+  margin-left: 0;
+  background: var(--mac-face);
+}
+
+body.idle .race-end {
+  cursor: default;
 }

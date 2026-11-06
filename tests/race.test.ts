@@ -537,3 +537,38 @@ describe('race series', () => {
     expect(series.race.rats.every((r) => Number.isFinite(r.position(series.track).x))).toBe(true);
   });
 });
+
+describe('restart', () => {
+  const finish = (series: RaceSeries) => {
+    let steps = 0;
+    while (!series.done) {
+      series.step(STEP_SECONDS);
+      if (++steps > TEST_GIVE_UP_SECONDS / STEP_SECONDS) throw new Error('race never ended');
+    }
+    return series.race;
+  };
+
+  for (const rats of [3, 6]) {
+    it(`reruns the same ${rats} rats in the same lanes with a different outcome`, () => {
+      const series = new RaceSeries(77, NAMES, () => 70, new Track(sceneSize(lanesFor(rats)).width, sceneSize(lanesFor(rats)).height, lanesFor(rats)), {
+        once: true,
+        withMusic: false,
+        rats: () => rats,
+      });
+      const who = (r: Rat) => [r.name, r.fur, r.silk, r.lane, r.side];
+      const first = finish(series);
+      const lineup = first.rats.map(who);
+      const results = [first.finishOrder.map((r) => [r.name, r.finishTime])];
+      for (let i = 0; i < 4; i++) {
+        series.rerun();
+        expect(series.done).toBe(false);
+        const again = finish(series);
+        expect(again.rats.map(who)).toEqual(lineup);
+        expect(again.seed).not.toBe(first.seed);
+        results.push(again.finishOrder.map((r) => [r.name, r.finishTime]));
+      }
+      // Fresh luck each time: not every rerun can match the first race.
+      expect(results.some((r) => JSON.stringify(r) !== JSON.stringify(results[0]))).toBe(true);
+    });
+  }
+});

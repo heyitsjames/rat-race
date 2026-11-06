@@ -17,7 +17,6 @@ const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
 const IDLE_MS = 1500;
 /** How long the finished race stays on screen before the menu comes back. */
-const BACK_TO_MENU_SECONDS = 10;
 /** Most of the window (each way) the start menu may take up. */
 const MENU_MAX_FILL = 0.8;
 
@@ -73,8 +72,6 @@ async function main(): Promise<void> {
   let paused = false;
   // The start menu shows first; ?run=1 skips straight to racing.
   let running = params.has('run');
-  /** Seconds since the race ended (race time, so pause and speed apply). */
-  let doneSeconds = 0;
 
   // ---------- sizing ----------
   /**
@@ -182,23 +179,24 @@ async function main(): Promise<void> {
     audio.setPaused(p);
     syncUi();
   };
-  /** Fresh races. */
+  /** The same rats race again with fresh luck, so the result can change. */
   const restart = () => {
-    doneSeconds = 0;
     audio.stopAll();
-    series = makeSeries();
+    series.rerun();
     stepper.reset();
     setPaused(false);
   };
   const startRacing = () => {
     audio.unlock();
     running = true;
-    restart();
+    audio.stopAll();
+    series = makeSeries();
+    stepper.reset();
+    setPaused(false);
     wake();
   };
   const showMenu = () => {
     running = false;
-    doneSeconds = 0;
     audio.stopAll();
     setPaused(false);
     series = makeSeries();
@@ -221,6 +219,19 @@ async function main(): Promise<void> {
 
   btnPause.onclick = () => setPaused(!paused);
   $('btn-restart').onclick = restart;
+  // Shown under the results board once the race is over.
+  const raceEnd = $('race-end');
+  $('end-restart').onclick = restart;
+  $('end-new-race').onclick = showMenu;
+  const placeRaceEnd = () => {
+    const show = running && series.done && !inspector.active && !!scene.boardRect;
+    raceEnd.hidden = !show;
+    if (!show) return;
+    const b = scene.boardRect!;
+    const dpr = devicePixelRatio || 1;
+    raceEnd.style.left = `${((b.x + b.w / 2) * vp.scale + vp.offsetX) / dpr}px`;
+    raceEnd.style.top = `${((b.y + b.h) * vp.scale + vp.offsetY) / dpr + 12}px`;
+  };
   btnSound.onclick = toggleSound;
   $('btn-fullscreen').onclick = toggleFullscreen;
   $('btn-menu').onclick = showMenu;
@@ -394,13 +405,12 @@ async function main(): Promise<void> {
         const steps = stepper.advance(real, speed);
         for (let i = 0; i < steps; i++) {
           for (const e of series.step(STEP_SECONDS)) handle(e);
-          // One race per run: once it's over, the board stays up for a while, then the menu returns.
-          if (series.done) doneSeconds += STEP_SECONDS;
         }
-        if (doneSeconds >= BACK_TO_MENU_SECONDS) showMenu();
       }
       scene.render(series.race, vp);
     }
+    // One race per run: once it's over, the board stays up with Restart and New Race under it.
+    placeRaceEnd();
     syncSoundHint();
     debugEl.hidden = !DEBUG || inspector.active;
     menuLayer.hidden = running || inspector.active;

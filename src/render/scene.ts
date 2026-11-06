@@ -78,6 +78,8 @@ export class SceneRenderer {
   private grass: CanvasPattern | null;
   private trackPattern: CanvasPattern | null;
   private boardImages = new Map<number, HTMLCanvasElement>();
+  /** Where the results board was last drawn, in scene pixels (null before the first draw). */
+  boardRect: { x: number; y: number; w: number; h: number } | null = null;
 
   constructor(
     private readonly ctx: CanvasRenderingContext2D,
@@ -293,6 +295,7 @@ export class SceneRenderer {
     const totalW = columns * img.width + (columns - 1) * b.columnGap;
     const bx0 = Math.round(vp.width / 2 - totalW / 2);
     const by = Math.round(vp.height / 2 - img.height / 2);
+    this.boardRect = { x: bx0, y: by, w: totalW, h: img.height };
     const panelH = b.panel.h + (rows - b.squares.length) * b.slotPitch;
     const head = frameRect(1150, 0);
     const slot = (k: number) => {

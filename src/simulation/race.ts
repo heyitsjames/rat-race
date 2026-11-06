@@ -88,6 +88,11 @@ export interface RaceOptions {
   silkCount?: number;
   /** Rats in the race (default one per lane); beyond the lanes they pair up, inner lanes first. */
   rats?: number;
+  /**
+   * Rerun these rats (names, coats, silks), one per entry in lane order, instead of drawing
+   * new ones. The seed still sets everything else, so a new seed gives a different race.
+   */
+  lineup?: readonly Placing[];
 }
 
 export function cleanName(name: string): string {
@@ -131,19 +136,21 @@ export class Race {
     this.competitive = opts.competitive ?? false;
     this.introPlaying = opts.introPlaying ?? (() => false);
     this.random = new Random(opts.seed);
-    const names = this.random.shuffle(opts.names.map(cleanName).filter(Boolean));
-    const silks = this.random.shuffle([...Array(opts.silkCount ?? palette.silks.length).keys()]);
+    const lineup = opts.lineup;
+    const names = lineup ? [] : this.random.shuffle(opts.names.map(cleanName).filter(Boolean));
+    const silks = lineup ? [] : this.random.shuffle([...Array(opts.silkCount ?? palette.silks.length).keys()]);
     const furCount = opts.furCount ?? palette.furs.length;
     this.rats = [];
     const lanes = this.track.lanes;
-    const doubled = Math.max(0, Math.min(lanes, (opts.rats ?? lanes) - lanes));
+    const doubled = Math.max(0, Math.min(lanes, (lineup?.length ?? opts.rats ?? lanes) - lanes));
     for (let lane = 0; lane < lanes; lane++) {
       const sides: (-1 | 0 | 1)[] = lane < doubled ? [-1, 1] : [0];
       const mates: Rat[] = [];
       for (const side of sides) {
         const i = this.rats.length;
+        const who = lineup?.[i] ?? { name: names[i % names.length], fur: this.random.int(furCount), silk: silks[i % silks.length] };
         const rat = new Rat(
-          { name: names[i % names.length], fur: this.random.int(furCount), silk: silks[i % silks.length], lane, side },
+          { name: who.name, fur: who.fur, silk: who.silk, lane, side },
           this.track,
           this.random,
         );
@@ -166,6 +173,11 @@ export class Race {
     if (!this.photo) return this.finishOrder;
     const inPhoto = this.photo.entries.map((e) => e.rat);
     return [...inPhoto, ...this.finishOrder.filter((r) => !inPhoto.includes(r))];
+  }
+
+  /** The rats in this race, in lane order, to rerun them with `lineup`. */
+  get lineup(): Placing[] {
+    return this.rats.map((r) => ({ name: r.name, fur: r.fur, silk: r.silk }));
   }
 
   get winners(): Rat[] {
@@ -367,8 +379,14 @@ export class RaceSeries {
     this.race.track = t;
   }
 
-  private makeRace(): Race {
+  /** Run the current rats again with fresh luck: same names, coats, silks and lanes, new seed. */
+  rerun(): void {
+    this.race = this.makeRace(this.race.lineup);
+  }
+
+  private makeRace(lineup?: readonly Placing[]): Race {
     return new Race({
+      lineup,
       seed: this.random.fork(),
       training: this.getTraining(),
       names: this.names,

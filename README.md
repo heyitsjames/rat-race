@@ -81,12 +81,12 @@ While racing, the control bar and cursor hide after 1.5 seconds without input; m
 |---|---|
 | Enter | Run Race (from the menu) |
 | Space | Pause / resume |
-| R | Restart the race |
+| R | Restart: the same rats race again with fresh luck |
 | F | Fullscreen |
 | M | Sound on/off |
 | Esc | Close About, otherwise back to the menu |
 
-Settings (saved in this browser): **Training** (Drop Out … Professional, plus an added **Cracked** level at the top), **Competitive**, **Rats**, sound and volume. Run Race runs one race, with music; 10 seconds after it ends the menu comes back. Browsers only allow audio after a click or key press; pressing Run Race counts.
+Settings (saved in this browser): **Training** (Drop Out … Professional, plus an added **Cracked** level at the top), **Competitive**, **Rats**, sound and volume. Run Race runs one race, with music. When it ends, two buttons appear under the results board: **Restart** runs the same rats again (same names, colours and lanes) with fresh luck, so the result can change, and **New Race** goes back to the menu. Browsers only allow audio after a click or key press; pressing Run Race counts.
 
 ## Debug tools
 
