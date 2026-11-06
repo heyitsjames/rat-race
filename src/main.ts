@@ -272,6 +272,8 @@ async function main(): Promise<void> {
       e.preventDefault();
       return;
     }
+    // Leave browser shortcuts alone: Cmd+R should just reload, not restart the race first.
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
     const target = e.target as HTMLElement;
     const typing = target.matches('input, select, textarea');
     const onButton = target.matches('button');
