@@ -27,6 +27,11 @@ export interface Settings {
   training: number;
   /** Race Track (xVal 1001, default on). */
   raceTrack: boolean;
+  /**
+   * Competitive mode (not in the original, off by default): rats keep racing normally after
+   * the winner crosses, so 2nd and 3rd are still contested, and every finish plays the ending.
+   */
+  competitive: boolean;
   /** Music slider position, 0-100 (sVal 1002). */
   musicLevel: number;
   sound: boolean;
@@ -36,6 +41,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   training: DEFAULT_TRAINING,
   raceTrack: true,
+  competitive: false,
   musicLevel: DEFAULT_MUSIC_LEVEL,
   sound: true,
   volume: 0.7,
@@ -57,6 +63,7 @@ export function loadSettings(): Settings {
     out.volume = Math.min(1, Math.max(0, Number(out.volume)));
     out.musicLevel = Math.min(100, Math.max(0, Number.isFinite(Number(out.musicLevel)) ? Number(out.musicLevel) : DEFAULT_MUSIC_LEVEL));
     out.raceTrack = !!out.raceTrack;
+    out.competitive = !!out.competitive;
     out.sound = !!out.sound;
     return out;
   } catch {

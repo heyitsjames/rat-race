@@ -24,7 +24,10 @@ import { trainingRow } from './training';
  *           and the race music (SONG 40) loops
  *  stage 3+ racing; when the winner crosses, the ending (SONG 45) plays and
  *           rats reaching the home straight head for the pipe; a photo finish
- *           (camera click, 3 s photo) if another rat is within 20 px of it
+ *           (camera click, 3 s photo) if another rat is within 20 px of it.
+ *           Competitive mode (not in the original) holds that off until all but
+ *           one rat have crossed, so 2nd place is still raced for; the last rat
+ *           then runs straight home.
  *
  * The infield board shows the current race's three entrants, inner lane at the
  * top, throughout (footage of the original); a photo finish briefly replaces
@@ -46,7 +49,8 @@ export type RaceEvent =
   | { type: 'gates-open' }
   | { type: 'release' }
   | { type: 'first-finish' }
-  | { type: 'finish'; rat: Rat; place: number }
+  /** `settlesAt`: the place whose finish decides the race (1, or in competitive mode all but the last). */
+  | { type: 'finish'; rat: Rat; place: number; settlesAt: number }
   | { type: 'photo' }
   | { type: 'done' };
 
@@ -76,6 +80,8 @@ export interface RaceOptions {
   trackVisible?: () => boolean;
   /** True while the intro song is audibly playing; the gates wait for it (RR_D1 f5ca4). */
   introPlaying?: () => boolean;
+  /** Competitive mode: distractions carry on until all but one rat have finished, not just the winner. */
+  competitive?: boolean;
   furCount?: number;
   silkCount?: number;
 }
@@ -93,6 +99,7 @@ export class Race {
   /** Rats in the order they physically crossed the line. */
   readonly finishOrder: Rat[] = [];
   readonly withMusic: boolean;
+  readonly competitive: boolean;
   track: Track;
   training: number;
   phase: Phase = 'staging';
@@ -116,6 +123,7 @@ export class Race {
     this.training = opts.training;
     this.track = opts.track;
     this.withMusic = opts.withMusic ?? false;
+    this.competitive = opts.competitive ?? false;
     this.trackVisible = opts.trackVisible ?? (() => true);
     this.introPlaying = opts.introPlaying ?? (() => false);
     this.random = new Random(opts.seed);
@@ -251,7 +259,7 @@ export class Race {
       random: this.random,
       track: this.track,
       behavioursOn: this.behavioursOn,
-      winnerDecided: this.finishOrder.length > 0,
+      winnerDecided: this.settled,
     };
     const crossed: { rat: Rat; t: number }[] = [];
     for (const rat of this.rats) {
@@ -267,12 +275,24 @@ export class Race {
         this.events.push({ type: 'first-finish' });
         this.takePhoto(rat);
       }
-      this.events.push({ type: 'finish', rat, place: this.finishOrder.length });
+      this.events.push({ type: 'finish', rat, place: this.finishOrder.length, settlesAt: this.settlesAt });
     }
     // The winner crossing the line ends the distractions for everyone: the others drop
     // what they are doing and run home (owner's recollection of the original). There is
     // no time limit: even Drop Out finishes on its own (see the Drop Out test).
-    if (this.behavioursOn && this.finishOrder.length > 0) this.behavioursOn = false;
+    if (this.behavioursOn && this.settled) this.behavioursOn = false;
+  }
+
+  /**
+   * How many finishers decide the race, after which everyone heads home: the winner,
+   * or in competitive mode all but the last rat (1st and 2nd of three).
+   */
+  get settlesAt(): number {
+    return this.competitive ? Math.max(1, this.rats.length - 1) : 1;
+  }
+
+  private get settled(): boolean {
+    return this.finishOrder.length >= this.settlesAt;
   }
 }
 
@@ -281,6 +301,8 @@ export interface SeriesOptions {
   musicForRace?: (raceIndex: number) => boolean;
   trackVisible?: () => boolean;
   introPlaying?: () => boolean;
+  /** Competitive mode for the next race (read as each race is set up). */
+  competitive?: () => boolean;
 }
 
 /** Runs races back to back with reproducible per-race seeds. */
@@ -323,6 +345,7 @@ export class RaceSeries {
       withMusic: this.options.musicForRace?.(this.raceIndex) ?? false,
       trackVisible: this.options.trackVisible,
       introPlaying: this.options.introPlaying,
+      competitive: this.options.competitive?.() ?? false,
     });
   }
 

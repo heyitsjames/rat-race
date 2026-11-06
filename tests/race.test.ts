@@ -228,6 +228,42 @@ describe('finish (RR_D1 stage 3+)', () => {
     expect(checked).toBeGreaterThan(0);
   });
 
+  it('in competitive mode, distractions carry on until 2nd crosses, then the last rat runs home', () => {
+    let distracted = 0;
+    let checked = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      // Collegiate (the default): Drop Out races run much longer in this mode.
+      const race = new Race({ seed, training: 70, names: NAMES, track, competitive: true });
+      expect(race.settlesAt).toBe(race.rats.length - 1);
+      let settledAt: number | null = null;
+      let steps = 0;
+      while (race.phase !== 'done') {
+        race.step(STEP_SECONDS);
+        if (++steps > TEST_GIVE_UP_SECONDS / STEP_SECONDS) throw new Error('race never ended');
+        const placed = race.finishOrder.length;
+        if (placed === 0) continue;
+        if (placed < race.settlesAt) {
+          expect(race.behavioursOn).toBe(true);
+          if (race.rats.some((r) => !r.finished && (r.sniffing || r.napping || r.mode === 'wrongWay'))) distracted++;
+          continue;
+        }
+        expect(race.behavioursOn).toBe(false);
+        settledAt ??= race.raceTime;
+        // Allow a step to get up and the turn round for a wrong-way rat.
+        if (race.raceTime - settledAt < 2) continue;
+        for (const r of race.rats) {
+          if (!r.visible) continue;
+          checked++;
+          expect(r.sniffing || r.napping, `seed ${seed} ${r.name}`).toBe(false);
+          expect(r.mode, `seed ${seed} ${r.name}`).not.toBe('wrongWay');
+        }
+      }
+      expect(race.finishOrder.length).toBe(race.rats.length);
+    }
+    expect(distracted).toBeGreaterThan(0);
+    expect(checked).toBeGreaterThan(0);
+  });
+
   it('calls a photo finish when another rat is within 20 px of the winner, ranked by nose', () => {
     // Photo finishes are rare (~1 race in 150), so search seeds for one.
     let race: Race | null = null;

@@ -54,6 +54,7 @@ async function main(): Promise<void> {
       musicForRace: (i) => musicForRace(musicChoice(settings.musicLevel), i),
       trackVisible: () => session.trackVisible(settings.raceTrack),
       introPlaying: () => audio.currentMusic === 'intro',
+      competitive: () => settings.competitive,
     });
   let series = makeSeries();
   const stepper = new FixedStepper(STEP_SECONDS);
@@ -89,8 +90,11 @@ async function main(): Promise<void> {
       case 'release':
         audio.release();
         break;
-      case 'first-finish':
-        audio.firstFinish();
+      case 'finish':
+        // The deciding finish (the winner, or 2nd in competitive mode) ends the music with the
+        // ending; earlier ones in competitive mode pause it for the ending; later ones are silent.
+        if (e.place === e.settlesAt) audio.firstFinish();
+        else if (e.place < e.settlesAt) audio.finishOverMusic();
         break;
       case 'photo':
         audio.photo();
@@ -105,6 +109,7 @@ async function main(): Promise<void> {
   const trainingOut = $<HTMLOutputElement>('training-label');
   const musicOut = $<HTMLOutputElement>('music-label');
   const raceTrack = $<HTMLInputElement>('race-track');
+  const competitive = $<HTMLInputElement>('competitive');
   const menuLayer = $('menu-layer');
   const menuVolumeIcon = $<HTMLImageElement>('menu-volume-icon');
   const menuHelp = $('menu-help');
@@ -133,6 +138,7 @@ async function main(): Promise<void> {
     music.set(settings.musicLevel);
     musicOut.textContent = musicLabel(settings.musicLevel);
     raceTrack.checked = settings.raceTrack;
+    competitive.checked = settings.competitive;
     const step = volumeStep(settings.sound, settings.volume);
     menuVolumeIcon.src = volumeIcon(step);
     $('menu-volume').title = step === 0 ? 'Sound off' : `Sound volume ${step} of 7`;
@@ -201,6 +207,10 @@ async function main(): Promise<void> {
   };
   raceTrack.onchange = () => {
     settings.raceTrack = raceTrack.checked;
+    commit();
+  };
+  competitive.onchange = () => {
+    settings.competitive = competitive.checked;
     commit();
   };
   // The speaker steps through the control panel's volume icons: off, 1, 2, 3, 5, 7.
@@ -328,7 +338,7 @@ async function main(): Promise<void> {
       `seed ${series.seed}  race #${series.raceIndex + 1}  race seed ${r.seed}`,
       `phase ${r.phase} ${r.phaseTime.toFixed(1)}s  race ${r.raceTime.toFixed(1)}s  speed x${speed}  ${fps.toFixed(0)} fps`,
       `session ${(session.elapsed / 60).toFixed(1)} min  track ${session.trackVisible(settings.raceTrack) ? 'shown' : 'hidden'}`,
-      `training ${settings.training} (${trainingLabel(settings.training)})  music ${settings.musicLevel} (${musicLabel(settings.musicLevel)})`,
+      `training ${settings.training} (${trainingLabel(settings.training)})  music ${settings.musicLevel} (${musicLabel(settings.musicLevel)})${r.competitive ? '  competitive' : ''}`,
       `audio ${audio.status} nodes ${audio.activeNodes} music ${audio.currentMusic ?? '-'}`,
       `recolour cache ${scene.recolor.size}  view ${vp.width.toFixed(0)}x${vp.height.toFixed(0)} @${vp.scale.toFixed(2)}`,
       ...r.rats.map((x) => `L${x.lane + 1} ${x.mode.padEnd(11)} q${x.q.toFixed(2).padStart(6)} v${x.v.toFixed(2)} ${x.finished ? 'P' + (r.finishOrder.indexOf(x) + 1) : '  '} ${x.name}`),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_MUSIC_LEVEL, musicChoice, musicLabel } from '../src/settings';
+import { DEFAULT_MUSIC_LEVEL, DEFAULT_SETTINGS, musicChoice, musicLabel } from '../src/settings';
 import { volumeStep } from '../src/menu';
 
 describe('Music slider (sUnt 1002)', () => {
@@ -27,5 +27,11 @@ describe('slider stops', () => {
     expect(stopIndex(training, 70)).toBe(3); // saved default: Collegiate
     expect(stopIndex(training, 100)).toBe(5);
     expect(stopIndex([0, 25, 50, 75], 30)).toBe(1); // Once
+  });
+});
+
+describe('competitive mode', () => {
+  it('is off by default', () => {
+    expect(DEFAULT_SETTINGS.competitive).toBe(false);
   });
 });

@@ -26,6 +26,12 @@ export class AudioEngine {
   private buffers = new Map<Clip, AudioBuffer>();
   private music: AudioBufferSourceNode | null = null;
   private musicClip: Clip | null = null;
+  /** AudioContext time at which the current music would have been at offset 0. */
+  private musicStartedAt = 0;
+  /** Competitive mode: the ending playing over a paused race loop. */
+  private interlude: AudioBufferSourceNode | null = null;
+  /** Where in the loop (s) to pick up again once the interlude ends. */
+  private loopResumeAt: number | null = null;
   private effects = new Map<Clip, AudioBufferSourceNode>();
   private enabled = true;
   private volume = 0.7;
@@ -45,7 +51,7 @@ export class AudioEngine {
   }
 
   get activeNodes(): number {
-    return this.effects.size + (this.music ? 1 : 0);
+    return this.effects.size + (this.music ? 1 : 0) + (this.interlude ? 1 : 0);
   }
 
   get currentMusic(): Clip | null {
@@ -74,8 +80,8 @@ export class AudioEngine {
 
   /** Start the music the current race wants, if none is playing and audio can play. */
   private catchUpMusic(): void {
-    if (!this.musicWanted || this.music || this.ctx?.state !== 'running') return;
-    if (this.racing) this.playMusic('loop', true);
+    if (!this.musicWanted || this.music || this.interlude || this.ctx?.state !== 'running') return;
+    if (this.racing) this.resumeLoop();
     else {
       this.playMusic('intro', false, () => {
         if (this.musicWanted && this.racing) this.playMusic('loop', true);
@@ -136,7 +142,7 @@ export class AudioEngine {
     else this.ctx.suspend().catch(() => undefined);
   }
 
-  private play(clip: Clip, loop = false, onEnded?: () => void): AudioBufferSourceNode | null {
+  private play(clip: Clip, loop = false, onEnded?: () => void, offset = 0): AudioBufferSourceNode | null {
     const buf = this.buffers.get(clip);
     if (!this.ctx || !this.master || !buf || this.ctx.state !== 'running') return null;
     const src = this.ctx.createBufferSource();
@@ -147,7 +153,7 @@ export class AudioEngine {
       src.disconnect();
       onEnded?.();
     };
-    src.start();
+    src.start(0, offset);
     return src;
   }
 
@@ -174,17 +180,52 @@ export class AudioEngine {
     }
   }
 
-  private playMusic(clip: Clip, loop: boolean, then?: () => void): void {
+  private playMusic(clip: Clip, loop: boolean, then?: () => void, offset = 0): void {
     this.stopMusic();
-    const src = this.play(clip, loop, () => {
-      if (this.music !== src) return;
-      this.music = null;
-      this.musicClip = null;
-      then?.();
-    });
+    const src = this.play(
+      clip,
+      loop,
+      () => {
+        if (this.music !== src) return;
+        this.music = null;
+        this.musicClip = null;
+        then?.();
+      },
+      offset,
+    );
     if (src) {
       this.music = src;
       this.musicClip = clip;
+      this.musicStartedAt = this.ctx!.currentTime - offset;
+    }
+  }
+
+  /** How far (s) into its buffer the current music is. The clock stops while suspended. */
+  private musicOffset(): number {
+    const dur = this.music?.buffer?.duration ?? 0;
+    if (!this.ctx || dur <= 0) return 0;
+    return (this.ctx.currentTime - this.musicStartedAt) % dur;
+  }
+
+  /** Start (or pick up again) the race loop. */
+  private resumeLoop(): void {
+    const at = this.loopResumeAt ?? 0;
+    this.loopResumeAt = null;
+    if (this.musicWanted && this.racing) this.playMusic('loop', true, undefined, at);
+  }
+
+  private stopInterlude(): void {
+    const s = this.interlude;
+    this.interlude = null;
+    this.loopResumeAt = null;
+    if (s) {
+      s.onended = null;
+      try {
+        s.stop();
+      } catch {
+        /* already stopped */
+      }
+      s.disconnect();
     }
   }
 
@@ -194,6 +235,7 @@ export class AudioEngine {
   raceStaging(withMusic: boolean): void {
     this.musicWanted = withMusic;
     this.racing = false;
+    this.stopInterlude();
     this.stopMusic();
     if (withMusic) this.playMusic('intro', false, () => {
       if (this.musicWanted && this.racing) this.playMusic('loop', true);
@@ -211,10 +253,31 @@ export class AudioEngine {
     if (this.musicWanted) this.playMusic('loop', true);
   }
 
-  /** Winner crossed: the ending (SONG 45) (RR_D1 0x506C message 6). */
+  /** Winner crossed (in competitive mode, 2nd): the race music stops for the ending (SONG 45) (RR_D1 0x506C message 6). */
   firstFinish(): void {
     this.racing = false;
+    this.stopInterlude();
     if (this.musicWanted) this.playMusic('end', false);
+  }
+
+  /**
+   * Competitive mode, a finish before the deciding one: the race loop pauses for the
+   * ending (SONG 45), then carries on from where it stopped. Another finish during
+   * the ending restarts it.
+   */
+  finishOverMusic(): void {
+    if (!this.musicWanted || !this.racing) return;
+    const resumeAt = this.music && this.musicClip === 'loop' ? this.musicOffset() : this.loopResumeAt;
+    this.stopInterlude();
+    const src = this.play('end', false, () => {
+      if (this.interlude !== src) return;
+      this.interlude = null;
+      this.resumeLoop();
+    });
+    if (!src) return; // audio not ready: the loop just keeps going
+    this.stopMusic();
+    this.interlude = src;
+    this.loopResumeAt = resumeAt;
   }
 
   /** Photo finish: the camera click (snd 1000, RR_D1 0x5182 message 2). */
@@ -223,6 +286,7 @@ export class AudioEngine {
   }
 
   stopAll(): void {
+    this.stopInterlude();
     this.stopMusic();
     for (const e of this.effects.values()) e.stop();
     this.effects.clear();
