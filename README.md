@@ -50,7 +50,7 @@ Add query parameters to the URL:
 | `?seed=1234` | Fixed seed for reproducible races (outcomes also depend on window size, which sets the track shape). |
 | `?speed=16` | Simulation speed multiplier. |
 | `?session=90` | Start the 90-minute clock at N minutes (90 hides the track immediately). |
-| `?corners=1` | Corner lab: one rat per lane loops round the bottom-right corner. Keys 1-6 switch between corner animation styles, Space pauses, `[` `]` change the speed. |
+| `?corners=1` | Corner lab: one rat per lane loops round the bottom-right corner. Keys 1-7 switch between corner animation styles (1 is what races use), Space pauses, `[` `]` change the speed. |
 | `?inspect=1` | Open the frame inspector (also `I` with `?debug=1`): step through every animation state, with anchor, bounding box, RLEP ID/frame, mirroring and recolouring. |
 
 ## Project layout

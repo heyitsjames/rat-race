@@ -128,19 +128,21 @@ export function drawFrame(
   rect: FrameRect,
   x: number,
   y: number,
-  opts: { flipX?: boolean; flipY?: boolean; snap?: number } = {},
+  opts: { flipX?: boolean; flipY?: boolean; snap?: number; rotate?: number } = {},
 ): void {
   const ax = rect.ax ?? rect.w / 2;
   const ay = rect.ay ?? rect.h / 2;
   const s = opts.snap ?? 1;
   const px = Math.round(x * s) / s;
   const py = Math.round(y * s) / s;
-  if (!opts.flipX && !opts.flipY) {
+  if (!opts.flipX && !opts.flipY && !opts.rotate) {
     ctx.drawImage(src, rect.x, rect.y, rect.w, rect.h, px - Math.round(ax), py - Math.round(ay), rect.w, rect.h);
     return;
   }
   ctx.save();
   ctx.translate(px, py);
+  // degrees anticlockwise on screen; canvas y points down, so negate
+  if (opts.rotate) ctx.rotate((-opts.rotate * Math.PI) / 180);
   ctx.scale(opts.flipX ? -1 : 1, opts.flipY ? -1 : 1);
   ctx.drawImage(src, rect.x, rect.y, rect.w, rect.h, -Math.round(ax), -Math.round(ay), rect.w, rect.h);
   ctx.restore();

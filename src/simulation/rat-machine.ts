@@ -128,6 +128,8 @@ export interface RatContext {
    * (the turn frames are spread across them), so slow corners don't jump.
    */
   cornerSteps: number;
+  /** Gait frame the rat was on when it entered the corner; the walk cycle carries on from it. */
+  cornerGait: number;
 }
 
 export interface RatInput {
@@ -369,7 +371,7 @@ export const ratMachine = setup({
           const speed = steadySpeed + (originalSpeed - steadySpeed) * CORNER_SPEED_BLEND;
           interval = Math.round(turnStepPx / speed);
         }
-        return { counter, interval, straightInterval: context.interval, q, chuteX: null, outcome: 'corner' as const, checkpointCredit: context.checkpointCredit, cornerSteps };
+        return { counter, interval, straightInterval: context.interval, q, chuteX: null, outcome: 'corner' as const, checkpointCredit: context.checkpointCredit, cornerSteps, cornerGait: counter };
       }
       // [8] RR_D2 0x1536: once there is a winner, a rat on the home straight heads for the pipe.
       if (env.winnerDecided && moved.chuteX === null && moved.q >= 8) {
@@ -384,7 +386,9 @@ export const ratMachine = setup({
     cornerStep: assign(({ context, event }) => {
       const counter = context.counter + 1;
       const start = Math.floor(context.q);
-      if (counter >= context.cornerSteps) {
+      // The last step lands on the end of the corner and hands straight back to running,
+      // with the walk cycle carrying on where it is.
+      if (counter >= context.cornerSteps - 1) {
         // back to the rat's straight-line pace (the original keeps the corner's interval)
         const interval = !FAIR_CORNERS && CORNER_SPEED_BLEND >= 1 ? context.interval : context.straightInterval;
         let checkpointCredit = context.checkpointCredit;
@@ -392,7 +396,7 @@ export const ratMachine = setup({
           const { track } = event.env;
           checkpointCredit += (track.gateNoseX(context.lane) - track.gateNoseX(0)) / 4;
         }
-        return { q: start + 1, counter: 0, done: true, interval, checkpointCredit };
+        return { q: start + 1, counter: (context.cornerGait + context.cornerSteps) % 6, done: true, interval, checkpointCredit };
       }
       return { counter, q: start + (counter + 1) / context.cornerSteps - 1e-9 };
     }),
@@ -498,6 +502,7 @@ export const ratMachine = setup({
     nap: null,
     checkpointCredit: 0,
     cornerSteps: CORNER_FRAMES,
+    cornerGait: 0,
     lastSniff: 0,
     lastNap: 0,
     inPipe: false,

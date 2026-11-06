@@ -213,7 +213,7 @@ export class SceneRenderer {
 
   private drawPose(pose: Pose, fur: number, silk: number, x: number, y: number, snap: number): void {
     const rat = { fur, silk };
-    const opts = { flipX: pose.flipX, flipY: pose.flipY, snap };
+    const opts = { flipX: pose.flipX, flipY: pose.flipY, snap, rotate: pose.rotate };
     if (pose.under) {
       const u = animFrame(pose.under.anim, pose.under.frame);
       drawFrame(this.ctx, this.recolor.sheet(u.sheet, rat.fur, rat.silk), u.rect, x, y, opts);

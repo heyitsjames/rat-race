@@ -2,7 +2,6 @@ import { createActor, type Actor, type SnapshotFrom } from 'xstate';
 import animations from '../../data/animations.json';
 import layout from '../../data/scene-layout.json';
 import {
-  CORNER_FRAMES,
   LANE_START_DELAY_MS,
   NAP_EXTRA_MS,
   NAP_STAND_FRAME,
@@ -29,6 +28,8 @@ export interface Pose {
   frame: number;
   flipX: boolean;
   flipY: boolean;
+  /** Extra rotation in degrees, anticlockwise on screen (walking round a corner). */
+  rotate?: number;
   /** Second piece drawn underneath (the still rump while sniffing). */
   under?: { anim: AnimName; frame: number };
 }
@@ -215,8 +216,8 @@ export class Rat {
     }
     switch (mode) {
       case 'corner':
-        // spread the 12 turn frames over however many steps this corner takes
-        return cornerPose(h, Math.floor((c.counter * CORNER_FRAMES) / c.cornerSteps));
+        // the normal walk cycle, turned to follow the curve
+        return { ...runPose(h, c.cornerGait + c.counter + 1), rotate: (90 * (c.counter + 1)) / c.cornerSteps };
       case 'turnAround': {
         // 1102/17-22 turns a right-facing rat round, 1102/23-28 an up-facing one
         const from = c.reversed ? h + 180 : h;

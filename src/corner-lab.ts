@@ -2,7 +2,7 @@
  * Corner lab (?corners=1): one rat per lane runs round the bottom-right corner
  * on a loop, so the corner animation options can be compared by eye.
  *
- * Keys: 1-6 pick a style, Space pauses, [ and ] change the speed.
+ * Keys: 1-7 pick a style, Space pauses, [ and ] change the speed.
  * The rats are driven directly here, not by the race simulation.
  */
 import { CORNER_FRAMES, STRIDE_PX } from './simulation/constants';
@@ -10,15 +10,17 @@ import { cornerPose, runPose, type Pose } from './simulation/rat';
 import type { Track } from './simulation/track';
 import type { SceneRenderer, Viewport } from './render/scene';
 
-type Style = { key: string; name: string; note: string };
+type StyleId = 'walk' | 'held' | 'wiggle' | 'sway' | 'wiggleSway' | 'glide' | 'original';
+type Style = { id: StyleId; key: string; name: string; note: string };
 
 export const CORNER_STYLES: Style[] = [
-  { key: '1', name: 'Held frames (current)', note: 'Stride-sized steps; each of the 12 turn frames held for ~3 strides.' },
-  { key: '2', name: 'Wiggle', note: 'As 1, but every other stride shows the next turn frame round: a ~7° body swing.' },
-  { key: '3', name: 'Sway', note: 'As 1, plus a 1 px sideways sway, alternating each stride.' },
-  { key: '4', name: 'Wiggle + sway', note: '2 and 3 together.' },
-  { key: '5', name: 'Glide (12 frames, smooth)', note: '12 turn frames like the original, but the rat moves smoothly between them.' },
-  { key: '6', name: 'Original (reference)', note: 'The original: 12 jumps at ~100 ms, not lane-fair timing.' },
+  { id: 'walk', key: '1', name: 'Walk + rotate (current)', note: 'The normal walk cycle at stride pace, the sprite rotated to follow the curve.' },
+  { id: 'held', key: '2', name: 'Held turn frames', note: 'Stride-sized steps; each of the 12 turn frames held for ~3 strides.' },
+  { id: 'wiggle', key: '3', name: 'Wiggle', note: 'As 2, but every other stride shows the next turn frame round: a ~7° body swing.' },
+  { id: 'sway', key: '4', name: 'Sway', note: 'As 2, plus a 1 px sideways sway, alternating each stride.' },
+  { id: 'wiggleSway', key: '5', name: 'Wiggle + sway', note: '3 and 4 together.' },
+  { id: 'glide', key: '6', name: 'Glide (12 frames, smooth)', note: '12 turn frames like the original, but the rat moves smoothly between them.' },
+  { id: 'original', key: '7', name: 'Original (reference)', note: 'The original: 12 jumps at ~100 ms, not lane-fair timing.' },
 ];
 
 /** Typical straight-line stride interval (ms) for the lab rats. */
@@ -66,11 +68,12 @@ export class CornerLab {
   private cornerPlan(lane: number): { ms: number; steps: number; glide: boolean } {
     const tr = this.track;
     const len = tr.segmentLength(1, lane);
-    if (this.style === 5) return { ms: CORNER_FRAMES * ORIGINAL_CORNER_MS, steps: CORNER_FRAMES, glide: false };
+    const id = CORNER_STYLES[this.style].id;
+    if (id === 'original') return { ms: CORNER_FRAMES * ORIGINAL_CORNER_MS, steps: CORNER_FRAMES, glide: false };
     // FAIR_CORNERS timing: inside lane's corner plus a quarter of this lane's stagger, at stride pace.
     const fairPx = tr.segmentLength(1, 0) + (tr.gateNoseX(lane) - tr.gateNoseX(0)) / 4;
     const ms = (fairPx / STRIDE_PX) * STRIDE_MS;
-    if (this.style === 4) return { ms, steps: CORNER_FRAMES, glide: true };
+    if (id === 'glide') return { ms, steps: CORNER_FRAMES, glide: true };
     return { ms, steps: Math.max(CORNER_FRAMES, Math.round(len / STRIDE_PX)), glide: false };
   }
 
@@ -83,11 +86,11 @@ export class CornerLab {
     // lanes start a little apart so they don't move in lockstep
     let t = (this.t + lane * 157) % cycle;
 
-    const straight = (seg: number, fromEnd: boolean, k: number): Placed => {
+    const straight = (seg: number, fromEnd: boolean, k: number, gait = 0): Placed => {
       const px = (fromEnd ? LEAD_PX - leadSteps * STRIDE_PX : 0) + k * STRIDE_PX;
       const q = fromEnd ? seg + 1 - (LEAD_PX - px) / tr.segmentLength(seg, lane) : seg + px / tr.segmentLength(seg, lane);
       const p = tr.point(q, lane);
-      return { pose: runPose(p.heading, k % 6), x: p.x, y: p.y };
+      return { pose: runPose(p.heading, (k + gait) % 6), x: p.x, y: p.y };
     };
 
     if (t < leadMs) return straight(0, true, Math.floor(t / STRIDE_MS));
@@ -97,9 +100,14 @@ export class CornerLab {
       const k = Math.min(plan.steps - 1, Math.floor(t / stepMs));
       const frac = plan.glide ? t / plan.ms : (k + 1) / plan.steps;
       const p = tr.point(1 + Math.min(frac, 1 - 1e-9), lane);
+      const id = CORNER_STYLES[this.style].id;
+      if (id === 'walk') {
+        // as the race does it: gait carries on from the straight, rotated to the curve
+        return { pose: { ...runPose(0, leadSteps + k + 1), rotate: 90 * frac }, x: p.x, y: p.y };
+      }
       let frame = Math.floor((k * CORNER_FRAMES) / plan.steps);
-      const wiggle = this.style === 1 || this.style === 3;
-      const sway = this.style === 2 || this.style === 3;
+      const wiggle = id === 'wiggle' || id === 'wiggleSway';
+      const sway = id === 'sway' || id === 'wiggleSway';
       if (wiggle && k % 2 === 1) frame = frame < CORNER_FRAMES - 1 ? frame + 1 : frame - 1;
       let { x, y } = p;
       if (sway) {
@@ -112,8 +120,10 @@ export class CornerLab {
       return { pose: cornerPose(0, frame), x, y };
     }
     t -= plan.ms;
-    if (t < leadMs) return straight(2, false, Math.floor(t / STRIDE_MS) + 1);
-    return straight(2, false, leadSteps);
+    // after the corner the gait carries on (only matters for 'walk'; the others restart it)
+    const g = CORNER_STYLES[this.style].id === 'walk' ? leadSteps + plan.steps : 0;
+    if (t < leadMs) return straight(2, false, Math.floor(t / STRIDE_MS) + 1, g);
+    return straight(2, false, leadSteps, g);
   }
 
   /** Status text for the overlay. */

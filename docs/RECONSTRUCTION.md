@@ -53,7 +53,7 @@ From the rat state machine in RR_D2 (message handler 0x0420); constants with the
 - Out of the pipe: 75 ms per step, lane n starting n × 25 ms late, random starting gait frame. No distractions (matches footage of the original).
 - At the gate the interval becomes 126 ms and stays so after the gates drop until re-rolled.
 - Every 6 steps on a straight: one time in three the interval is re-rolled to 75 + 17 × RollD(3) (92, 109 or 126 ms); then RandInt(1000) is compared with the Training odds.
-- Corners: 12 turn frames at 75 + 17 × RollD(2) ms, so rats speed up through corners (outer lane ~3×), as in the original. With `FAIR_CORNERS` on (the default) corner timing is set for lane fairness instead, and outer lanes speed up only slightly; rats then take corners in stride-sized (~7 px) steps with the 12 turn frames spread across them, because 12 slow steps of up to 21 px looked like the rat glitching forward; with it off, `CORNER_SPEED_BLEND` (1 = original) applies.
+- Corners: 12 turn frames at 75 + 17 × RollD(2) ms, so rats speed up through corners (outer lane ~3×), as in the original. With `FAIR_CORNERS` on (the default) corner timing is set for lane fairness instead, and outer lanes speed up only slightly; rats then take corners in stride-sized (~7 px) steps, because 12 slow steps of up to 21 px looked like the rat glitching forward. **Remake change:** in corners the rat keeps its normal walk cycle and the sprite is rotated to follow the curve, instead of the original 12 turn frames (1100/6-17, 1101/0-11), which have no walk cycle and looked stiff and choppy when held over several steps. The original turn frames are still in the corner lab (`?corners=1`) for comparison; with it off, `CORNER_SPEED_BLEND` (1 = original) applies.
 - Turn round: 6 frames at 126 ms, then a sniff, then running backwards with the same checkpoints (turn back with the turn-round odds, sniff, no naps); a rat reaching the start of its straight turns back automatically.
 - Nap: one of 8 variants (never the same twice running); shallow ones wiggle 4-6 times, deep ones loop the curl or sleep 2-3 extra times then uncurl; nap steps are 17 ms slower.
 - Sniff: one of 3 variants (never the same twice running), head flicking or wandering until a coin flip ends it.
@@ -73,7 +73,7 @@ From the rat state machine in RR_D2 (message handler 0x0420); constants with the
 
 | Records | Status |
 |---|---|
-| 1100/0-23, 1101/0-11 | Used: running and corner poses |
+| 1100/0-23, 1101/0-11 | Used: running poses (also rotated through corners); the turn frames 1100/6-17 and 1101/0-11 appear only in the corner lab |
 | 1101/24-32, 1102/0-16 | Used: nap (1102/4-16 are the vertical-straight versions; there is no grooming) |
 | 1102/17-28 | Used: wrong-way turnarounds |
 | 1102/4 | Used: standing pose on vertical straights |
