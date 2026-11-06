@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rat Race</title>
+    <link rel="icon" type="image/png" href="./assets/rat-race/images/icon-color.png" />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene" aria-label="Rat Race screensaver: rats racing on a track"></canvas>
+    <div id="loading">Rat Race: Saddling up the rats…</div>
+
+    <div id="controls" class="controls" role="toolbar" aria-label="Screensaver controls">
+      <button id="btn-pause" type="button" title="Pause (Space)">Pause</button>
+      <button id="btn-restart" type="button" title="Restart (R)">Restart</button>
+      <button id="btn-sound" type="button" title="Sound on/off (M)" aria-pressed="true">Sound on</button>
+      <label class="vol">Volume <input id="volume" type="range" min="0" max="1" step="0.05" /></label>
+      <button id="btn-menu" type="button" title="Back to the menu (Esc)">Menu</button>
+      <button id="btn-about" type="button" aria-expanded="false" aria-controls="about">About</button>
+      <button id="btn-fullscreen" type="button" title="Fullscreen (F)">Fullscreen</button>
+    </div>
+
+    <!--
+      Start menu, after the After Dark 3.0 control panel: faceplate (AD 3.0 Faceplate PICT 128),
+      the module's own controls (sUnt 1000 "Training:", xVal 1001 "Race Track", sUnt 1002 "Music:")
+      with the control panel's flying-toaster slider thumbs (THUM 128), and its speaker icons.
+    -->
+    <div id="menu-layer">
+      <section id="menu" class="mac-window" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+        <header class="mac-titlebar"><span id="menu-title">After Dark</span></header>
+        <div class="mac-body">
+          <div class="faceplate">
+            <img src="./assets/rat-race/panel/faceplate.png" width="185" height="47" alt="After Dark" />
+          </div>
+          <div class="module">
+            <img src="./assets/rat-race/images/icon-color.png" width="32" height="32" alt="" />
+            <div>
+              <div class="module-name">Rat Race</div>
+              <div class="module-credit">By Andrew Armstrong and Matt Small.</div>
+            </div>
+          </div>
+          <div class="module-stack">
+          <div id="module-controls" class="module-controls">
+            <div class="mac-slider-field">
+              <div class="mac-slider-head"><span id="training-name">Training:</span><output id="training-label"></output></div>
+              <div id="training" class="mac-slider" role="slider" tabindex="0" aria-labelledby="training-name">
+                <div class="mac-groove"></div><div class="mac-thumb"></div>
+              </div>
+            </div>
+            <label class="mac-check"><input id="race-track" type="checkbox" /><span class="mac-box" aria-hidden="true"></span>Race Track</label>
+            <div class="mac-slider-field">
+              <div class="mac-slider-head"><span id="music-name">Music:</span><output id="music-label"></output></div>
+              <div id="music" class="mac-slider" role="slider" tabindex="0" aria-labelledby="music-name">
+                <div class="mac-groove"></div><div class="mac-thumb"></div>
+              </div>
+            </div>
+          </div>
+          <div id="menu-help" class="mac-help" hidden tabindex="0"></div>
+          </div>
+          <div class="mac-footer">
+            <button id="menu-volume" class="mac-speaker" type="button" title="Sound volume">
+              <img id="menu-volume-icon" src="./assets/rat-race/panel/volume-5.png" width="32" height="32" alt="" />
+            </button>
+            <button id="menu-help-btn" class="mac-button mac-small" type="button" aria-expanded="false" aria-controls="menu-help" title="About Rat Race">?</button>
+            <span class="mac-default-ring"><button id="run-race" class="mac-button" type="button">Run Race</button></span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section id="about" class="panel" hidden aria-label="About">
+      <h2>About</h2>
+      <p>A browser reconstruction of the After Dark module <strong>Rat Race 3.0</strong>, ©1994 Berkeley Systems, Inc.
+        Programming by Andrew Armstrong. Art by Matt Small.</p>
+      <p>All artwork, sounds and music are the original resources, recovered from the module and the shared
+        AD 3.0 Sound library. Timing, layout and behaviour are partly reconstructed; see docs/RECONSTRUCTION.md.</p>
+      <p class="hint">Keys: Enter run race · Space pause · R restart · F fullscreen · M sound · T track · Esc menu.</p>
+    </section>
+
+    <button id="sound-hint" type="button" hidden>Click anywhere to turn on sound</button>
+    <pre id="debug" hidden></pre>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,67 @@
+{
+  "logical": {
+    "width": 1024,
+    "height": 768,
+    "note": "Fixed 1024x768 (4:3) scene, as in footage of the original (lane pitch measures 35 px at that size, matching the code). The window letterboxes or pillarboxes it with black bars."
+  },
+  "track": {
+    "lanes": 3,
+    "laneHeight": 36.6,
+    "margin": 8,
+    "outerRadius": 180,
+    "finishBeforeCorner": 26,
+    "laneLine": "rgba(255,255,255,0.85)",
+    "evidence": "Reference screenshot: 3 lanes, rounded-rectangle loop hugging the screen, start chute on the bottom straight, finish line near its right end. Lane pitch from gate rail 1001/0 (110 px = 3 lanes), photo 1300/0 (3 lane bands) and 3 board wells. Radius and margins measured from the screenshot (approximate)."
+  },
+  "gate": {
+    "innerOffset": -14,
+    "stagger": 117,
+    "doorGap": 1,
+    "note": "Door frames 1200/0 (closed), 1200/1 (dropping) and 1200/2 (down, stays up for the rest of the race). Door positions measured from footage at 1024x768 (inner door x 175, then +117 per lane); timing from RR_D1 f03c2, see GATE_FRAME_MS."
+  },
+  "rat": {
+    "noseOffset": 30
+  },
+  "board": {
+    "width": 231,
+    "topHeight": 121,
+    "panel": {
+      "x": 78,
+      "y": 28,
+      "w": 124,
+      "h": 141
+    },
+    "squares": [
+      {
+        "x": 30,
+        "y": 35
+      },
+      {
+        "x": 30,
+        "y": 83
+      },
+      {
+        "x": 30,
+        "y": 131
+      }
+    ],
+    "evidence": "1400/0 (231x121) + 1400/1 (231x76) stack into one board; its black panel is exactly 124x141 like 1300/0, and its three wells are 31x31 like the 1150/0 head. The reference screenshot shows it centred in the infield with one name per well."
+  },
+  "photo": {
+    "finishX": 62,
+    "bands": [
+      {
+        "top": 31,
+        "bottom": 53
+      },
+      {
+        "top": 56,
+        "bottom": 86
+      },
+      {
+        "top": 91,
+        "bottom": 124
+      }
+    ]
+  }
+}

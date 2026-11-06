@@ -1,0 +1,446 @@
+:root {
+  --panel-bg: rgba(20, 34, 26, 0.92);
+  --panel-border: #57947b;
+  --text: #e6f0e6;
+  --muted: #a5b8a5;
+  --accent: #ffc200;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #1e4c05;
+  color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+body.idle {
+  cursor: none;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  image-rendering: pixelated;
+}
+
+#loading {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #000;
+  color: #fff;
+  font-size: 16px;
+}
+
+#loading.error {
+  color: #ff8a80;
+}
+
+.controls {
+  position: fixed;
+  left: 50%;
+  /* sit in the infield, clear of the starting chute along the bottom */
+  bottom: max(16px, calc(14vh + 24px));
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: calc(100vw - 32px);
+  padding: 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  transition: opacity 0.3s;
+}
+
+body.idle .controls,
+body.idle .panel {
+  opacity: 0;
+  pointer-events: none;
+}
+
+button,
+select {
+  font: inherit;
+  color: var(--text);
+  background: #2e3929;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #3d4b37;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.vol {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.vol input {
+  width: 90px;
+}
+
+.panel {
+  position: fixed;
+  right: 16px;
+  bottom: max(80px, calc(14vh + 88px));
+  width: min(320px, calc(100vw - 32px));
+  max-height: calc(100vh - 14vh - 120px);
+  overflow: auto;
+  padding: 14px 16px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  transition: opacity 0.3s;
+}
+
+.panel h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+#debug {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  margin: 0;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #9f9;
+  font: 11px/1.35 ui-monospace, Menlo, monospace;
+  pointer-events: auto;
+  white-space: pre;
+}
+
+#debug button {
+  font-size: 11px;
+  padding: 1px 6px;
+  margin: 2px 2px 0 0;
+}
+
+/* Browsers block audio until the first click or key press; say so instead of failing silently. */
+#sound-hint {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  padding: 6px 14px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+/* ---------- start menu: After Dark 3.0 control panel ---------- */
+/* Authored at original Mac pixel sizes; main.ts scales it up by a whole number. */
+
+#menu-layer {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+#menu-layer[hidden],
+.controls[hidden] {
+  display: none;
+}
+
+.mac-window {
+  --mac-ink: #000;
+  --mac-paper: #fff;
+  --mac-face: #ddd;
+  --mac-shadow: #888;
+  --mac-light: #fff;
+  width: 240px;
+  color: var(--mac-ink);
+  background: var(--mac-face);
+  border: 1px solid var(--mac-ink);
+  box-shadow: 1px 1px 0 var(--mac-ink);
+  font: 10px/12px Geneva, Verdana, Tahoma, sans-serif;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  transform: scale(var(--menu-scale, 1));
+  user-select: none;
+}
+
+.mac-window img,
+.mac-thumb {
+  image-rendering: pixelated;
+}
+
+/* System 7 title bar: pinstripes either side of the title */
+.mac-titlebar {
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border-bottom: 1px solid var(--mac-ink);
+  background:
+    linear-gradient(var(--mac-face), var(--mac-face)) 0 0 / 100% 3px no-repeat,
+    linear-gradient(var(--mac-face), var(--mac-face)) 0 100% / 100% 3px no-repeat,
+    repeating-linear-gradient(var(--mac-ink) 0 1px, var(--mac-face) 1px 2px);
+}
+
+.mac-titlebar span {
+  padding: 0 6px;
+  background: var(--mac-face);
+  font: bold 12px/19px Chicago, ChicagoFLF, Charcoal, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.mac-body {
+  padding: 6px 8px 8px;
+}
+
+.faceplate {
+  display: grid;
+  place-items: center;
+  background: #000;
+  border: 1px solid var(--mac-ink);
+  box-shadow: inset 1px 1px 0 var(--mac-shadow);
+  padding: 2px 0;
+}
+
+.faceplate img {
+  display: block;
+}
+
+.module {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  padding: 3px 4px;
+  background: var(--mac-paper);
+  border: 1px solid var(--mac-ink);
+}
+
+.module img {
+  display: block;
+}
+
+.module-name {
+  font: bold 12px/14px Chicago, ChicagoFLF, Charcoal, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.module-credit {
+  font-size: 9px;
+  line-height: 11px;
+}
+
+.module-controls {
+  display: grid;
+  gap: 7px;
+  padding: 6px 8px 8px;
+  border: 1px solid var(--mac-shadow);
+  box-shadow: 1px 1px 0 var(--mac-light), inset 1px 1px 0 var(--mac-light);
+}
+
+.mac-slider-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1px;
+}
+
+.mac-slider-head output {
+  font-weight: bold;
+}
+
+.mac-slider {
+  position: relative;
+  height: 16px;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+
+.mac-groove {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 6px;
+  height: 4px;
+  background: var(--mac-paper);
+  border: 1px solid var(--mac-ink);
+  box-shadow: inset 1px 1px 0 var(--mac-shadow);
+}
+
+.mac-slider {
+  margin-bottom: 6px;
+}
+
+/* one tick per setting, under the groove */
+.mac-ticks i {
+  position: absolute;
+  top: 17px;
+  width: 1px;
+  height: 4px;
+  background: var(--mac-ink);
+}
+
+.mac-thumb {
+  z-index: 1;
+  position: absolute;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  background: no-repeat 0 0 / 16px 16px;
+}
+
+.mac-slider:focus-visible .mac-thumb {
+  outline: 1px solid var(--mac-ink);
+  outline-offset: 1px;
+}
+
+.mac-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.mac-check input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mac-box {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  background: var(--mac-paper);
+  border: 1px solid var(--mac-ink);
+}
+
+/* the classic X check */
+.mac-check input:checked + .mac-box {
+  background:
+    linear-gradient(45deg, transparent calc(50% - 0.6px), var(--mac-ink) calc(50% - 0.6px) calc(50% + 0.6px), transparent calc(50% + 0.6px)),
+    linear-gradient(-45deg, transparent calc(50% - 0.6px), var(--mac-ink) calc(50% - 0.6px) calc(50% + 0.6px), transparent calc(50% + 0.6px)),
+    var(--mac-paper);
+}
+
+.mac-check input:focus-visible + .mac-box {
+  outline: 1px solid var(--mac-ink);
+  outline-offset: 1px;
+}
+
+/* help takes the controls' place so the window keeps its size */
+.module-stack {
+  position: relative;
+}
+
+.module-controls[aria-hidden='true'] {
+  visibility: hidden;
+}
+
+.mac-help {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 4px 6px;
+  background: var(--mac-paper);
+  border: 1px solid var(--mac-ink);
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+.mac-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mac-window button {
+  color: var(--mac-ink);
+  background: var(--mac-paper);
+  border: 1px solid var(--mac-ink);
+}
+
+.mac-window button:hover {
+  background: var(--mac-paper);
+}
+
+.mac-window button:active {
+  color: var(--mac-paper);
+  background: var(--mac-ink);
+}
+
+.mac-window button:focus-visible {
+  outline: 1px dotted var(--mac-ink);
+  outline-offset: 1px;
+}
+
+.mac-speaker.mac-speaker {
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+}
+
+/* The volume ICONs draw in the top-left of their 32x32 cell (ink at most 20x23,
+   speaker cone at x=0), so shift the art to centre it in the button and its focus ring. */
+.mac-speaker img {
+  object-fit: none;
+  object-position: 6px 4px;
+}
+
+/* No hover or press look: the speaker is just the icon. */
+.mac-window .mac-speaker:hover,
+.mac-window .mac-speaker:active {
+  background: none;
+}
+
+.mac-button {
+  height: 20px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font: 12px/18px Chicago, ChicagoFLF, Charcoal, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.mac-small {
+  padding: 0 7px;
+}
+
+/* default button: the thick rounded ring drawn around it */
+.mac-default-ring {
+  margin-left: auto;
+  padding: 3px;
+  border: 3px solid var(--mac-ink);
+  border-radius: 10px;
+  line-height: 0;
+}
