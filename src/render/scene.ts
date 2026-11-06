@@ -55,6 +55,12 @@ const BOARD_PANEL_PADDING = 4;
 const PHOTO_LABEL_TOP_PX = 9;
 const PHOTO_LABEL_BOTTOM_PX = 13;
 
+/** Board layout for `rats` entrants: one column up to four, then two equal columns. */
+export function boardGrid(rats: number): { columns: number; rows: number } {
+  const columns = rats <= 4 ? 1 : 2;
+  return { columns, rows: Math.max(layout.board.squares.length, Math.ceil(rats / columns)) };
+}
+
 /**
  * Pipe pieces, inside lane first, that make up a column of `lanes` pipe mouths:
  * three-pipe pieces (1001/0) with two-pipe ones (1001/1) for the remainder,
@@ -71,7 +77,7 @@ export class SceneRenderer {
   readonly recolor: Recolorer;
   private grass: CanvasPattern | null;
   private trackPattern: CanvasPattern | null;
-  private boardImage: HTMLCanvasElement | null = null;
+  private boardImages = new Map<number, HTMLCanvasElement>();
 
   constructor(
     private readonly ctx: CanvasRenderingContext2D,
@@ -242,54 +248,74 @@ export class SceneRenderer {
   }
 
   /**
-   * The board's two pieces (1400/0 over 1400/1) joined into one image. Drawn
-   * separately, the join can land mid-pixel at non-integer scales and let the
-   * grass show through as a faint line.
+   * The board's two pieces (1400/0 over 1400/1) joined into one image, `rows`
+   * wells tall. Drawn separately, the join can land mid-pixel at non-integer
+   * scales and let the grass show through as a faint line. Each well past the
+   * original three repeats a 48 px strip from the middle (boardRows).
    */
-  private board(): HTMLCanvasElement {
-    if (this.boardImage) return this.boardImage;
+  private board(rows: number): HTMLCanvasElement {
+    const cached = this.boardImages.get(rows);
+    if (cached) return cached;
     const b = layout.board;
     const t0 = frameRect(1400, 0);
     const t1 = frameRect(1400, 1);
-    const c = document.createElement('canvas');
-    c.width = b.width;
-    c.height = b.topHeight + t1.h;
-    const g = c.getContext('2d')!;
     const s = this.assets.sheets['1400'];
-    g.drawImage(s, t0.x, t0.y, t0.w, t0.h, 0, 0, t0.w, t0.h);
-    g.drawImage(s, t1.x, t1.y, t1.w, t1.h, 0, b.topHeight, t1.w, t1.h);
-    this.boardImage = c;
+    const base = document.createElement('canvas');
+    base.width = b.width;
+    base.height = b.topHeight + t1.h;
+    const g0 = base.getContext('2d')!;
+    g0.drawImage(s, t0.x, t0.y, t0.w, t0.h, 0, 0, t0.w, t0.h);
+    g0.drawImage(s, t1.x, t1.y, t1.w, t1.h, 0, b.topHeight, t1.w, t1.h);
+    const extra = rows - b.squares.length;
+    const c = document.createElement('canvas');
+    c.width = base.width;
+    c.height = base.height + extra * b.slotPitch;
+    const g = c.getContext('2d')!;
+    const { from, to } = b.repeat;
+    // Everything above the strip's end, the strip again per extra well, then the rest.
+    g.drawImage(base, 0, 0, c.width, to, 0, 0, c.width, to);
+    for (let k = 0; k < extra; k++) g.drawImage(base, 0, from, c.width, to - from, 0, to + k * b.slotPitch, c.width, to - from);
+    g.drawImage(base, 0, to, c.width, base.height - to, 0, to + extra * b.slotPitch, c.width, base.height - to);
+    this.boardImages.set(rows, c);
     return c;
   }
 
-  /** Results board in the infield (1400/0 over 1400/1), one head and name per well. */
+  /**
+   * Results board in the infield, one head and name per well: the original
+   * single three-well board for three rats, taller or in two columns for more
+   * (boardGrid), inner lanes first down the left column.
+   */
   private drawBoard(vp: Viewport, placings: Placing[], photoRace: Race | null, places: number[] = []): void {
     const { ctx } = this;
     const b = layout.board;
-    const t0 = frameRect(1400, 0);
-    const t1 = frameRect(1400, 1);
-    const bx = Math.round(vp.width / 2 - b.width / 2);
-    const by = Math.round(vp.height / 2 - (t0.h + t1.h) / 2);
-    ctx.drawImage(this.board(), bx, by);
-    const px = bx + b.panel.x;
-    const py = by + b.panel.y;
-
+    const { columns, rows } = boardGrid(placings.length);
+    const img = this.board(rows);
+    const totalW = columns * img.width + (columns - 1) * b.columnGap;
+    const bx0 = Math.round(vp.width / 2 - totalW / 2);
+    const by = Math.round(vp.height / 2 - img.height / 2);
+    const panelH = b.panel.h + (rows - b.squares.length) * b.slotPitch;
     const head = frameRect(1150, 0);
-    placings.slice(0, b.squares.length).forEach((p, k) => {
-      const sq = b.squares[k];
+    const slot = (k: number) => {
+      const bx = bx0 + Math.floor(k / rows) * (img.width + b.columnGap);
+      return { bx, px: bx + b.panel.x, wellY: by + b.squares[0].y + (k % rows) * b.slotPitch };
+    };
+    for (let col = 0; col < columns; col++) ctx.drawImage(img, bx0 + col * (img.width + b.columnGap), by);
+
+    placings.forEach((p, k) => {
+      const { bx, wellY } = slot(k);
       const src = this.recolor.sheet('1150', p.fur, p.silk);
-      ctx.drawImage(src, head.x, head.y, head.w, head.h, bx + sq.x, by + sq.y, head.w, head.h);
+      ctx.drawImage(src, head.x, head.y, head.w, head.h, bx + b.squares[0].x, wellY, head.w, head.h);
     });
 
-    if (photoRace) {
-      this.drawPhoto(photoRace, px, py);
-      return;
-    }
-    placings.slice(0, b.squares.length).forEach((p, k) => {
+    // A photo finish covers the first column's names; a second column keeps its own.
+    if (photoRace) this.drawPhoto(photoRace, bx0 + b.panel.x, by + b.panel.y + Math.round((panelH - b.panel.h) / 2));
+    placings.forEach((p, k) => {
+      if (photoRace && k < rows) return;
+      const { px, wellY } = slot(k);
       const lines = this.font.wrap(p.name, b.panel.w - 2 * BOARD_PANEL_PADDING);
       const label = PLACE_LABELS[places[k] ?? -1];
       if (label) lines.push(label);
-      const centre = by + b.squares[k].y + head.h / 2;
+      const centre = wellY + head.h / 2;
       const top = centre - (lines.length * BOARD_LINE_HEIGHT) / 2;
       lines.forEach((line, i) => this.font.drawCentered(ctx, line, px + b.panel.w / 2, top + i * BOARD_LINE_HEIGHT, '#ffffff'));
     });
@@ -298,7 +324,9 @@ export class SceneRenderer {
   /**
    * Photo-finish still: the 1300/0 finish-line close-up with the first three
    * running (1100/0), each set back by how far behind the winner it crossed.
-   * The original photo layout is not recovered; this is an approximation.
+   * The original photo layout is not recovered; this is an approximation. It
+   * has three lane bands, so in bigger races it shows the winner and the two
+   * closest, centred in a taller panel.
    */
   private drawPhoto(race: Race, px: number, py: number): void {
     const { ctx } = this;
@@ -309,7 +337,7 @@ export class SceneRenderer {
     ctx.beginPath();
     ctx.rect(px, py, p.w, p.h);
     ctx.clip();
-    const entries = [...race.photo!.entries].sort((a, b) => a.rat.lane - b.rat.lane);
+    const entries = race.photo!.entries.slice(0, layout.photo.bands.length).sort((a, b) => a.rat.lane - b.rat.lane);
     const { sheet, rect } = animFrame('run-right', 0);
     entries.forEach(({ rat, behindPx }, i) => {
       const band = layout.photo.bands[Math.min(i, layout.photo.bands.length - 1)];

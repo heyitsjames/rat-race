@@ -50,7 +50,14 @@
         "y": 131
       }
     ],
-    "evidence": "1400/0 (231x121) + 1400/1 (231x76) stack into one board; its black panel is exactly 124x141 like 1300/0, and its three wells are 31x31 like the 1150/0 head. The reference screenshot shows it centred in the infield with one name per well."
+    "evidence": "1400/0 (231x121) + 1400/1 (231x76) stack into one board; its black panel is exactly 124x141 like 1300/0, and its three wells are 31x31 like the 1150/0 head. The reference screenshot shows it centred in the infield with one name per well.",
+    "slotPitch": 48,
+    "repeat": {
+      "from": 50,
+      "to": 98
+    },
+    "columnGap": 12,
+    "growNote": "Remake addition for 4-8 rats: rows 39-106 of the joined board repeat exactly every 48 px (one well), so a taller board copies rows 50-98 once per extra well, which also lengthens the name panel. 3-4 rats use one column; 5-8 use two equal columns (ceil(n/2) wells each), inner lanes down the left column."
   },
   "photo": {
     "finishX": 62,

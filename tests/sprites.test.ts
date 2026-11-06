@@ -43,3 +43,17 @@ describe('pipe mouths', () => {
     expect(pipePieces(8)).toEqual([3, 3, 2]);
   });
 });
+
+describe('results board', () => {
+  it('uses one column up to four rats, then two equal columns', async () => {
+    const { boardGrid } = await import('../src/render/scene');
+    expect([3, 4, 5, 6, 7, 8].map(boardGrid)).toEqual([
+      { columns: 1, rows: 3 },
+      { columns: 1, rows: 4 },
+      { columns: 2, rows: 3 },
+      { columns: 2, rows: 3 },
+      { columns: 2, rows: 4 },
+      { columns: 2, rows: 4 },
+    ]);
+  });
+});
