@@ -17,6 +17,8 @@ const DEBUG = params.has('debug');
 const IDLE_MS = 3000;
 /** How long the finished race stays on screen before the menu comes back. */
 const BACK_TO_MENU_SECONDS = 10;
+/** Most of the window (each way) the start menu may take up. */
+const MENU_MAX_FILL = 0.8;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -74,15 +76,26 @@ async function main(): Promise<void> {
   let doneSeconds = 0;
 
   // ---------- sizing ----------
+  /**
+   * Whole-number scaling keeps the control panel art crisp. Use the largest scale at
+   * which the menu takes at most MENU_MAX_FILL of the window, measured from the menu
+   * itself (offset sizes ignore the CSS transform), so it never fills a big screen.
+   */
+  let menuSize = { w: 240, h: 311 };
+  const fitMenu = () => {
+    const el = $('menu');
+    if (el.offsetHeight > 0) menuSize = { w: el.offsetWidth, h: el.offsetHeight };
+    const fit = Math.min((innerWidth * MENU_MAX_FILL) / menuSize.w, (innerHeight * MENU_MAX_FILL) / menuSize.h);
+    const menuScale = Math.max(1, Math.min(3, Math.floor(fit)));
+    document.documentElement.style.setProperty('--menu-scale', String(menuScale));
+  };
   const resize = () => {
     const dpr = devicePixelRatio || 1;
     canvas.width = Math.max(1, Math.round(innerWidth * dpr));
     canvas.height = Math.max(1, Math.round(innerHeight * dpr));
     vp = computeViewport(innerWidth, innerHeight, dpr, lanes);
     series.track = new Track(vp.width, vp.height, lanes);
-    // Whole-number scaling keeps the control panel art crisp.
-    const menuScale = Math.max(1, Math.min(3, Math.floor(Math.min((innerWidth - 32) / 242, (innerHeight - 32) / 300))));
-    document.documentElement.style.setProperty('--menu-scale', String(menuScale));
+    fitMenu();
   };
   resize();
   addEventListener('resize', resize);
