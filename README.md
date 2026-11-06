@@ -2,9 +2,7 @@
 
 A browser reconstruction of the After Dark 3.0 screensaver module **Rat Race** (©1994 Berkeley Systems, Inc.; programming by Andrew Armstrong, art by Matt Small), built from the original artwork, sounds and music recovered from the module and the shared AD 3.0 Sound library.
 
-Three rats come out of the pipes, line up behind staggered gates, race one lap of a track that rings the screen, and leave through the pipes at the far end. The results board then shows in the infield while the next three line up.
-
-This is a private, personal-use project. The artwork, sounds and music are Berkeley Systems' and are **not in this repository**: you extract them from your own copy of After Dark (see [Getting the assets](#getting-the-assets)).
+The artwork, sounds and music are Berkeley Systems' and are **not in this repository**: you extract them from your own copy of After Dark (see [Getting the assets](#getting-the-assets)).
 
 ## Getting the assets
 
@@ -41,17 +39,6 @@ npm run extract -- "/path/to/After Dark 4.94 Collection"
 
 This writes `public/assets/rat-race/` and `reference/STFT_110.bin` (both git-ignored) and regenerates `data/`. It stops with a list of anything missing before writing files. The help text is edited to match the remake's settings, and the script fails loudly if the original wording isn't found.
 
-### The private asset bucket
-
-So the site can build without the original files, the extracted assets also live as one archive in a private Cloudflare R2 bucket (`rat-race-assets`). `assets.lock` names the archive and its SHA-256.
-
-```sh
-npm run assets:fetch    # download and unpack the archive in assets.lock (uses `wrangler login`)
-npm run assets:upload   # after a new extract: upload a new archive and update assets.lock; commit it
-```
-
-The archive also holds `public/og-image.jpg`, the link preview image (a screenshot of the game), which isn't made by the extractor.
-
 ## Run it
 
 Requires Node 20+ (tested with Node 24), and the assets above.
@@ -66,10 +53,6 @@ npm run preview    # serve the production build at http://localhost:4173
 ```
 
 `dist/` is a static site with relative URLs, so it can be served from any folder or subpath. `dev`, `build` and `test` stop with instructions if the assets are missing.
-
-## Deploying
-
-Pushing to master deploys to Cloudflare Pages (project `rat-race`). Its build command is `npm run assets:fetch && npm run build`. The fetch reads the bucket with a read-only R2 key, stored as the encrypted Pages variables `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` for both Production and Preview.
 
 ## Controls
 
