@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import names from '../public/assets/rat-race/rat-names-and-labels.json';
 import { Race, RaceSeries, type RaceEvent } from '../src/simulation/race';
-import { INTRO_SONG_MS, NO_MUSIC_INTRO_MS, PHOTO_FINISH_RANGE_PX } from '../src/simulation/constants';
+import { CORNER_REPAY, INTRO_SONG_MS, LANE_MATE_DRIFT_STEPS, LANE_MATE_LEAN_DEG, LANE_MATE_OFFSET, NO_MUSIC_INTRO_MS, PHOTO_FINISH_RANGE_PX } from '../src/simulation/constants';
 import { Rat } from '../src/simulation/rat';
 import { STEP_SECONDS } from '../src/simulation/session';
-import { Track, sceneSize } from '../src/simulation/track';
-import { TRAINING_LEVELS, TRAINING_TABLE } from '../src/simulation/training';
+import { Track, lanesFor, sceneSize } from '../src/simulation/track';
+import { TRAINING_LEVELS, TRAINING_TABLE, trainingRow } from '../src/simulation/training';
 
 const NAMES = names['2000'];
 const track = new Track(1024, 768);
 /** Test guard only (the game has no time limit): far beyond the slowest simulated Drop Out race, 34 min. */
 const TEST_GIVE_UP_SECONDS = 2 * 60 * 60;
 
-function runRace(seed: number, training: number, t = track, dt = STEP_SECONDS) {
-  const race = new Race({ seed, training, names: NAMES, track: t });
+function runRace(seed: number, training: number, t = track, dt = STEP_SECONDS, rats?: number) {
+  const race = new Race({ seed, training, names: NAMES, track: t, rats });
   const points: { x: number; y: number }[] = [];
   let k = 0;
   let steps = 0;
@@ -344,54 +344,123 @@ describe('recovered Training odds', () => {
 });
 
 describe('more rats', () => {
-  for (const lanes of [5, 8]) {
-    const { width, height } = sceneSize(lanes);
-    const t = new Track(width, height, lanes);
+  const lanes = lanesFor(8);
+  const { width, height } = sceneSize(lanes);
+  const t = new Track(width, height, lanes);
 
-    it(`races ${lanes} rats, one per lane, with no repeated silk or name`, () => {
-      const { race, points } = runRace(31, 70, t, 1 / 30);
-      expect(race.rats).toHaveLength(lanes);
-      expect(new Set(race.rats.map((r) => r.lane)).size).toBe(lanes);
-      expect(new Set(race.rats.map((r) => r.silk)).size).toBe(lanes);
-      expect(new Set(race.rats.map((r) => r.name)).size).toBe(lanes);
-      expect(race.finishOrder).toHaveLength(lanes);
+  it('never draws more than four lanes', () => {
+    expect([3, 4, 5, 6, 7, 8].map(lanesFor)).toEqual([3, 4, 4, 4, 4, 4]);
+  });
+
+  for (const [rats, perLane] of [
+    [5, [2, 1, 1, 1]],
+    [8, [2, 2, 2, 2]],
+  ] as const) {
+    it(`races ${rats} rats on four lanes, pairing up in the inner lanes, with no repeated silk or name`, () => {
+      const { race, points } = runRace(31, 70, t, 1 / 30, rats);
+      expect(race.rats).toHaveLength(rats);
+      expect([0, 1, 2, 3].map((l) => race.rats.filter((r) => r.lane === l).length)).toEqual(perLane);
+      for (let l = 0; l < lanes; l++) {
+        const sides = race.rats.filter((r) => r.lane === l).map((r) => r.side);
+        expect(sides).toEqual(sides.length === 2 ? [-1, 1] : [0]);
+      }
+      expect(new Set(race.rats.map((r) => r.silk)).size).toBe(rats);
+      expect(new Set(race.rats.map((r) => r.name)).size).toBe(rats);
+      expect(race.finishOrder).toHaveLength(rats);
       for (const r of race.finishOrder) expect(r.q).toBeGreaterThan(8);
       expect(Math.min(...points.map((p) => p.y))).toBeGreaterThan(0);
       expect(Math.max(...points.map((p) => p.y))).toBeLessThan(t.height);
     });
 
-    it(`lines all ${lanes} rats up at their gates before the gates open`, () => {
-      const race = new Race({ seed: 3, training: 70, names: NAMES, track: t });
+    it(`lines all ${rats} rats up at their gates, lane-mates side by side, before the gates open`, () => {
+      const race = new Race({ seed: 3, training: 70, names: NAMES, track: t, rats });
       while (race.phase === 'staging') race.step(STEP_SECONDS);
-      for (const r of race.rats) expect(r.position(t).x + 30).toBeCloseTo(t.gateNoseX(r.lane), 6);
+      for (const r of race.rats) {
+        expect(r.position(t).x + 30).toBeCloseTo(t.gateNoseX(r.lane), 6);
+        expect(r.offset).toBe(r.side * LANE_MATE_OFFSET);
+        expect(r.position(t).y).toBeCloseTo(t.bottomLaneY(r.lane + r.side * LANE_MATE_OFFSET), 6);
+      }
     });
   }
 
-  it('gives no lane a real advantage with eight rats', () => {
-    // Measured over 800 Cracked races per count while adding this: every count from 3 to 8
-    // within chance of an even split (a first run at 5 lanes looked uneven; 1,600 fresh races were even).
-    const { width, height } = sceneSize(8);
-    const t = new Track(width, height, 8);
-    const N = 400;
-    const wins = Array(8).fill(0);
-    for (let s = 0; s < N; s++) wins[runRace(9000 + s, 100, t, 1 / 20).race.standings[0].lane]++;
-    console.log('wins by lane (Cracked, 8 rats, 400 races):', wins);
-    // a fair eighth is 50 ± 6.6 (one standard error); allow about three
-    for (const w of wins) {
-      expect(w).toBeGreaterThan(30);
-      expect(w).toBeLessThan(70);
+  it('moves lane-mates across the lane only on their own steps, a little at a time, leaning the way they go', () => {
+    const step = LANE_MATE_OFFSET / LANE_MATE_DRIFT_STEPS;
+    let moved = 0;
+    let centred = 0;
+    let held = 0;
+    let leans = 0;
+    for (const seed of [1, 2]) {
+      // Grade School: plenty of sniffs, so some lane-mates are caught standing still mid-move
+      const race = new Race({ seed, training: 20, names: NAMES, track: t, rats: 6 });
+      while (race.phase !== 'done') {
+        const before = race.rats.map((r) => ({ q: r.q, chuteX: r.chuteX, offset: r.offset }));
+        race.step(STEP_SECONDS);
+        race.rats.forEach((r, i) => {
+          const b = before[i];
+          const d = Math.abs(r.offset - b.offset);
+          expect(Math.abs(r.offset)).toBeLessThanOrEqual(LANE_MATE_OFFSET + 1e-9);
+          if (r.side === 0) expect(r.offset).toBe(0);
+          if (d > 0) {
+            // standing still holds; a step moves at most a drift step (a few if catching up)
+            expect(r.q !== b.q || r.chuteX !== b.chuteX).toBe(true);
+            expect(d).toBeLessThanOrEqual(4 * step + 1e-9);
+            moved++;
+          } else if (r.side !== 0 && r.offset !== r.targetOffset && (r.sniffing || r.napping)) held++;
+          if (r.side !== 0 && r.offset === 0) centred++;
+          // on a straight, the only turn is the lean: right going outward, left going inward (mirrored backing up)
+          const straight = r.chuteX === null && Math.floor(r.q) % 2 === 0;
+          const rotate = r.pose().rotate ?? 0;
+          if (straight && rotate !== 0 && (r.mode === 'run' || r.mode === 'wrongWay')) {
+            const out = Math.sign(r.targetOffset - r.offset);
+            expect(rotate).toBe(out * LANE_MATE_LEAN_DEG * (r.mode === 'wrongWay' ? 1 : -1));
+            leans++;
+          }
+        });
+      }
     }
-    // 400 eight-rat races take about 5 s, right at vitest's default limit
+    expect(moved).toBeGreaterThan(0);
+    expect(centred).toBeGreaterThan(0);
+    expect(held).toBeGreaterThan(0);
+    expect(leans).toBeGreaterThan(0);
   }, 30_000);
+
+  it('gives no lane, and neither lane-mate, a real advantage with eight rats', () => {
+    // Measured with tools/lane-mates-fairness.ts over 1,000 races per level and count (4-8 rats).
+    const N = 400;
+    const wins = Array(lanes).fill(0);
+    let innerAhead = 0;
+    for (let s = 0; s < N; s++) {
+      const standings = runRace(9000 + s, 100, t, 1 / 20, 8).race.standings;
+      wins[standings[0].lane]++;
+      for (let l = 0; l < lanes; l++) if (standings.find((r) => r.lane === l)!.side === -1) innerAhead++;
+    }
+    console.log('wins by lane (Cracked, 8 rats on 4 lanes, 400 races):', wins, 'inner mate ahead:', innerAhead, 'of', N * lanes);
+    // a fair quarter is 100 ± 8.7 (one standard error); allow about three
+    for (const w of wins) {
+      expect(w).toBeGreaterThan(74);
+      expect(w).toBeLessThan(126);
+    }
+    // inner mate ahead of its outer one: 800 ± 20 of 1,600; allow about three
+    expect(innerAhead).toBeGreaterThan(740);
+    expect(innerAhead).toBeLessThan(860);
+  }, 30_000);
+
+  it('repays a little more of the gate head start at the slower Training levels', () => {
+    // 1.05 keeps the outer lanes from edging ahead at Drop Out to Collegiate; at Professional
+    // and Cracked an exact repay is already even (more tips them toward the inside lane).
+    expect(CORNER_REPAY).toBe(1);
+    expect([0, 20, 40, 60, 80, 100].map((v) => trainingRow(v).cornerRepay ?? CORNER_REPAY)).toEqual([1.05, 1.05, 1.05, 1.05, 1, 1]);
+  });
 });
 
 describe('distractions in corners', () => {
   it('draws a rat stopped, turning or running the wrong way in a corner turned to follow the curve', () => {
-    const { width, height } = sceneSize(8);
-    const t = new Track(width, height, 8);
+    const lanes = lanesFor(8);
+    const { width, height } = sceneSize(lanes);
+    const t = new Track(width, height, lanes);
     const seen = new Set<string>();
     for (let seed = 1; seed < 40 && seen.size < 4; seed++) {
-      const race = new Race({ seed, training: 0, names: NAMES, track: t });
+      const race = new Race({ seed, training: 0, names: NAMES, track: t, rats: 8 });
       while (race.phase !== 'done' && race.raceTime < 600 && seen.size < 4) {
         race.step(1 / 30);
         for (const r of race.rats) {
@@ -399,7 +468,10 @@ describe('distractions in corners', () => {
           const kind = r.sniffing ? 'sniff' : r.napping ? 'nap' : r.mode === 'turnAround' || r.mode === 'wrongWay' ? r.mode : null;
           if (!kind) continue;
           const bend = 90 * (r.q - Math.floor(r.q));
-          expect(r.pose().rotate ?? 0).toBeCloseTo(bend, 6);
+          // plus the lane-mate lean while a wrong-way rat walks across its lane
+          const lean = (r.pose().rotate ?? 0) - bend;
+          expect([0, LANE_MATE_LEAN_DEG, -LANE_MATE_LEAN_DEG].some((l) => Math.abs(lean - l) < 1e-6)).toBe(true);
+          if (kind !== 'wrongWay') expect(lean).toBeCloseTo(0, 6);
           seen.add(kind);
         }
       }

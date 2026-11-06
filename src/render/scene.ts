@@ -328,8 +328,8 @@ export class SceneRenderer {
    * Photo-finish still: the 1300/0 finish-line close-up with the first three
    * running (1100/0), each set back by how far behind the winner it crossed.
    * The original photo layout is not recovered; this is an approximation. It
-   * has three lane bands, so in bigger races it shows the winner and the two
-   * closest, centred in a taller panel.
+   * has three bands, so in bigger races it shows the winner and the two closest,
+   * one to a band in track order (lane-mates included), centred in a taller panel.
    */
   private drawPhoto(race: Race, px: number, py: number): void {
     const { ctx } = this;
@@ -340,7 +340,8 @@ export class SceneRenderer {
     ctx.beginPath();
     ctx.rect(px, py, p.w, p.h);
     ctx.clip();
-    const entries = race.photo!.entries.slice(0, layout.photo.bands.length).sort((a, b) => a.rat.lane - b.rat.lane);
+    // Top to bottom as on the track: inner lane first, and an inner lane-mate above its outer one.
+    const entries = race.photo!.entries.slice(0, layout.photo.bands.length).sort((a, b) => a.rat.lane - b.rat.lane || a.rat.side - b.rat.side);
     const { sheet, rect } = animFrame('run-right', 0);
     entries.forEach(({ rat, behindPx }, i) => {
       const band = layout.photo.bands[Math.min(i, layout.photo.bands.length - 1)];
