@@ -4,23 +4,72 @@ A browser reconstruction of the After Dark 3.0 screensaver module **Rat Race** (
 
 Three rats come out of the pipes, line up behind staggered gates, race one lap of a track that rings the screen, and leave through the pipes at the far end. The results board then shows in the infield while the next three line up.
 
-This is a private, personal-use project. The artwork, sounds and music are Berkeley Systems' and are not relicensed here.
+This is a private, personal-use project. The artwork, sounds and music are Berkeley Systems' and are **not in this repository**: you extract them from your own copy of After Dark (see [Getting the assets](#getting-the-assets)).
 
-![Results board during staging](docs/screenshots/05-results-board.jpg)
+## Getting the assets
+
+The game needs the original artwork, sounds and music, which are made from four files in the **After Dark 4.94 Collection**:
+
+| File (inside the collection folder) | What comes from it |
+|---|---|
+| `After Dark Files/After Dark 3.0/Rat Race` | the module: rat sprites, track and grass textures, Ratvetica font, palettes, sound effects, rat names, help text |
+| `After Dark Files/AD 3.0 Resources/AD 3.0 Sound` | the William Tell music (MIDI sequences and instrument samples) |
+| `After Dark Files/After Dark 3.0/After Dark 3.0 Faceplate` | the faceplate on the start menu |
+| `After Dark 4.94` | the control panel: toaster slider thumbs and speaker icons |
+
+These are classic Mac OS files: everything is in their **resource forks**, and the data forks are empty (0 bytes). The extractor reads a fork on macOS through `<file>/..namedfork/rsrc`, so copy the collection with something that keeps resource forks (Finder, `ditto`, or unpacking the original `.sit`/`.dmg` on a Mac). On other systems, save each fork as a raw file named `Rat Race.rsrc`, `AD 3.0 Sound.rsrc`, `After Dark 3.0 Faceplate.rsrc` and `After Dark 4.94.rsrc` in one folder and pass that folder instead. The Rat Race fork must be version 3.0 (SHA-256 `5385f6b345ac69fa2fa67d68f75aa03be0f494bb9eb448162c99c23640d16a4a`); the extractor checks.
+
+Requirements:
+
+- Python 3 with Pillow and numpy (`pip install pillow numpy`)
+- ImageMagick 7 (`brew install imagemagick`)
+- [resource_dasm](https://github.com/fuzziqersoftware/resource_dasm), built from source with its library [phosg](https://github.com/fuzziqersoftware/phosg) (needs CMake and a C++ compiler):
+
+  ```sh
+  git clone https://github.com/fuzziqersoftware/phosg.git
+  git clone https://github.com/fuzziqersoftware/resource_dasm.git
+  (cd phosg && cmake -S . -B build && cmake --build build -j8 && sudo cmake --install build)
+  (cd resource_dasm && cmake -S . -B build && cmake --build build -j8)
+  export RESOURCE_DASM="$PWD/resource_dasm/build/resource_dasm"   # or put it on PATH
+  ```
+
+Then:
+
+```sh
+npm run extract -- "/path/to/After Dark 4.94 Collection"
+```
+
+This writes `public/assets/rat-race/` and `reference/STFT_110.bin` (both git-ignored) and regenerates `data/`. It stops with a list of anything missing before writing files. The help text is edited to match the remake's settings, and the script fails loudly if the original wording isn't found.
+
+### The private asset bucket
+
+So the site can build without the original files, the extracted assets also live as one archive in a private Cloudflare R2 bucket (`rat-race-assets`). `assets.lock` names the archive and its SHA-256.
+
+```sh
+npm run assets:fetch    # download and unpack the archive in assets.lock (uses `wrangler login`)
+npm run assets:upload   # after a new extract: upload a new archive and update assets.lock; commit it
+```
+
+The archive also holds `public/og-image.jpg`, the link preview image (a screenshot of the game), which isn't made by the extractor.
 
 ## Run it
 
-Requires Node 20+ (tested with Node 24).
+Requires Node 20+ (tested with Node 24), and the assets above.
 
 ```sh
 npm install        # install dependencies
+npm run assets:fetch   # or npm run extract -- "<collection folder>"
 npm run dev        # dev server at http://localhost:5173
 npm test           # deterministic simulation tests (vitest)
 npm run build      # type-check + production build into dist/
 npm run preview    # serve the production build at http://localhost:4173
 ```
 
-`dist/` is a static site with relative URLs, so it can be served from any folder or subpath.
+`dist/` is a static site with relative URLs, so it can be served from any folder or subpath. `dev`, `build` and `test` stop with instructions if the assets are missing.
+
+## Deploying
+
+Pushing to master deploys to Cloudflare Pages (project `rat-race`). Its build command is `npm run assets:fetch && npm run build`. The fetch reads the bucket with a read-only R2 key, stored as the encrypted Pages variables `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` for both Production and Preview.
 
 ## Controls
 
@@ -69,19 +118,20 @@ src/render/               Canvas 2D rendering, recolouring, Ratvetica font
 src/audio.ts              Web Audio: effects and music
 src/debug.ts              frame / anchor inspector
 data/                     animations, scene layout, palette mapping, font metrics
-public/assets/rat-race/   original artwork, sounds and rendered music
-  panel/                  After Dark control panel art for the start menu
-tools/                    data and music generation scripts; tools/re has the annotated original code
+public/assets/rat-race/   (git-ignored) extracted artwork, sounds and rendered music
+reference/                (git-ignored) raw STFT font metrics used by tools/build-data.mjs
+tools/extract.py          extracts all assets from the original files
+tools/assets.mjs          uploads and fetches the asset archive in R2
+tools/                    also data, menu art and music generation scripts
+tools/re/                 regenerates the annotated disassembly of the original code
 docs/RECONSTRUCTION.md    evidence, approximations and open questions
-docs/screenshots/         validation screenshots
-reference/                raw STFT font metrics used by tools/build-data.mjs
 ```
 
 ## Regenerating data
 
-- `npm run data` rebuilds `data/animations.json` (sprite anchors), `data/font.json` and `data/palette-mappings.json` from the assets in `public/`.
-- Menu art: `tools/extract_panel_art.py` exports the AD 3.0 faceplate, slider thumbs and speaker icons from the *After Dark 3.0 Faceplate* and *After Dark* control panel resource forks (Python 3 + Pillow). See the script header.
-- Music: `tools/render_music.py` renders the three William Tell songs from a `resource_dasm` export of the original *AD 3.0 Sound* resource fork (Python 3 + numpy). Only needed if you want to re-render; the WAVs are committed. See the script header for the exact commands.
+- `npm run data` rebuilds `data/animations.json` (sprite anchors), `data/font.json` and `data/palette-mappings.json` from the assets in `public/`. `npm run extract` runs it for you.
+- `npm run extract` calls `tools/extract_panel_art.py` (menu art) and `tools/render_music.py` (music); both can also be run on their own, see their headers.
+- `python3 tools/re/disassemble.py "<collection folder>"` regenerates the annotated disassembly that the source addresses in `src/simulation/constants.ts` refer to. It also needs `After Dark Files/AD 3.0 Resources/AD 3.0 Code`. See `tools/re/README.md`.
 
 ## Credits
 

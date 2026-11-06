@@ -6,7 +6,7 @@ fork (SONG/cmid/csnd/snd resources). Only the original MIDI sequences and the
 original instrument samples are used; no new music is composed.
 
 Usage:
-    resource_dasm "AD 3.0 Sound/..namedfork/rsrc" EXPORT_DIR
+    resource_dasm --data-fork "AD 3.0 Sound/..namedfork/rsrc" EXPORT_DIR
     python3 tools/render_music.py EXPORT_DIR public/assets/rat-race/audio/music
 
 Rat Race CODE 129 (RR_D1, around 0x5BD6-0x5C72) asks the shared song player for
@@ -136,8 +136,9 @@ def write_wav(path, x):
     open(path, 'wb').write(hdr + pcm)
 
 
-def main():
-    export_dir, out_dir = sys.argv[1], sys.argv[2]
+def main(export_dir=None, out_dir=None):
+    if export_dir is None:
+        export_dir, out_dir = sys.argv[1], sys.argv[2]
     os.makedirs(out_dir, exist_ok=True)
     cache = {}
     rendered = {sid: render(export_dir, sid, cache) for sid in SONGS}

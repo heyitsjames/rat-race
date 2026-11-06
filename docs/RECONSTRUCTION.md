@@ -6,7 +6,7 @@ How the remake was put together, what is backed by evidence from the original, a
 
 | Source | Used for |
 |---|---|
-| Rat Race 3.0 resource fork (SHA-256 `5385f6b3…16a4a`), extracted to PNG/JSON/WAV | All artwork, palettes, font, names, sound effects, settings labels |
+| Rat Race 3.0 resource fork (SHA-256 `5385f6b3…16a4a`), extracted to PNG/JSON/WAV by `tools/extract.py` | All artwork, palettes, font, names, sound effects, settings labels |
 | Module code, CODE 129 (RR_D1) and CODE 130 (RR_D2), with relocations resolved (tools/re) | Training table, rat state machine, step timing, distraction odds, finish line, music IDs |
 | Shared *AD 3.0 Sound* resource fork, via `resource_dasm` | SONG 30/40/45 MIDI and instrument samples |
 | Reference screenshot of the original | Track shape, 3 lanes, pipes, gates, finish line, board placement and content |

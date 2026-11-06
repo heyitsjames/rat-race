@@ -4,3 +4,10 @@ dist
 .DS_Store
 __pycache__/
 *.pyc
+.archive-sha256
+
+# Original After Dark assets: made by `npm run extract` or `npm run assets:fetch`, never committed
+/public/assets/rat-race/
+/reference/STFT_110.bin
+/public/og-image.jpg
+/tools/re/out/

@@ -8,9 +8,16 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "data": "node tools/build-data.mjs"
+    "data": "node tools/build-data.mjs",
+    "extract": "python3 tools/extract.py",
+    "assets:upload": "node tools/assets.mjs upload",
+    "assets:fetch": "node tools/assets.mjs fetch",
+    "predev": "node tools/assets.mjs check",
+    "prebuild": "node tools/assets.mjs check",
+    "pretest": "node tools/assets.mjs check"
   },
   "devDependencies": {
+    "aws4fetch": "^1.0.20",
     "pngjs": "^7.0.0",
     "typescript": "^5.9.3",
     "vite": "^6.4.5",

@@ -60,8 +60,10 @@ def bits(data, w, h):
     return [[(data[y * row + x // 8] >> (7 - x % 8)) & 1 for x in range(w)] for y in range(h)]
 
 
-def main():
-    face, cdev, out = sys.argv[1], sys.argv[2], Path(sys.argv[3])
+def main(face=None, cdev=None, out=None):
+    if face is None:
+        face, cdev, out = sys.argv[1], sys.argv[2], sys.argv[3]
+    out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     pal = mac_palette()
 
