@@ -4,7 +4,7 @@ import { Race, RaceSeries, type RaceEvent } from '../src/simulation/race';
 import { INTRO_SONG_MS, NO_MUSIC_INTRO_MS, PHOTO_FINISH_RANGE_PX } from '../src/simulation/constants';
 import { Rat } from '../src/simulation/rat';
 import { STEP_SECONDS } from '../src/simulation/session';
-import { Track } from '../src/simulation/track';
+import { Track, sceneSize } from '../src/simulation/track';
 import { TRAINING_LEVELS, TRAINING_TABLE } from '../src/simulation/training';
 
 const NAMES = names['2000'];
@@ -347,6 +347,47 @@ describe('recovered Training odds', () => {
       const want = row.turnAround + row.nap + row.sniff;
       expect(Math.abs(counts.nap / (counts.nap + counts.sniff) - row.nap / (row.nap + row.sniff))).toBeLessThan(0.06);
       expect(Math.abs(counts.sniff / total - row.sniff / want)).toBeLessThan(0.15);
+    }
+  });
+});
+
+describe('more rats', () => {
+  for (const lanes of [5, 8]) {
+    const { width, height } = sceneSize(lanes);
+    const t = new Track(width, height, lanes);
+
+    it(`races ${lanes} rats, one per lane, with no repeated silk or name`, () => {
+      const { race, points } = runRace(31, 70, t, 1 / 30);
+      expect(race.rats).toHaveLength(lanes);
+      expect(new Set(race.rats.map((r) => r.lane)).size).toBe(lanes);
+      expect(new Set(race.rats.map((r) => r.silk)).size).toBe(lanes);
+      expect(new Set(race.rats.map((r) => r.name)).size).toBe(lanes);
+      expect(race.finishOrder).toHaveLength(lanes);
+      for (const r of race.finishOrder) expect(r.q).toBeGreaterThan(8);
+      expect(Math.min(...points.map((p) => p.y))).toBeGreaterThan(0);
+      expect(Math.max(...points.map((p) => p.y))).toBeLessThan(t.height);
+    });
+
+    it(`lines all ${lanes} rats up at their gates before the gates open`, () => {
+      const race = new Race({ seed: 3, training: 70, names: NAMES, track: t });
+      while (race.phase === 'staging') race.step(STEP_SECONDS);
+      for (const r of race.rats) expect(r.position(t).x + 30).toBeCloseTo(t.gateNoseX(r.lane), 6);
+    });
+  }
+
+  it('gives no lane a real advantage with eight rats', () => {
+    // Measured over 800 Cracked races per count while adding this: every count from 3 to 8
+    // within chance of an even split (a first run at 5 lanes looked uneven; 1,600 fresh races were even).
+    const { width, height } = sceneSize(8);
+    const t = new Track(width, height, 8);
+    const N = 400;
+    const wins = Array(8).fill(0);
+    for (let s = 0; s < N; s++) wins[runRace(9000 + s, 100, t, 1 / 20).race.standings[0].lane]++;
+    console.log('wins by lane (Cracked, 8 rats, 400 races):', wins);
+    // a fair eighth is 50 ± 6.6 (one standard error); allow about three
+    for (const w of wins) {
+      expect(w).toBeGreaterThan(30);
+      expect(w).toBeLessThan(70);
     }
   });
 });

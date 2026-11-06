@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_MUSIC_LEVEL, DEFAULT_SETTINGS, musicChoice, musicLabel } from '../src/settings';
+import { DEFAULT_MUSIC_LEVEL, DEFAULT_SETTINGS, loadSettings, musicChoice, musicLabel } from '../src/settings';
 import { volumeStep } from '../src/menu';
 
 describe('Music slider (sUnt 1002)', () => {
@@ -27,6 +27,29 @@ describe('slider stops', () => {
     expect(stopIndex(training, 70)).toBe(3); // saved default: Collegiate
     expect(stopIndex(training, 100)).toBe(5);
     expect(stopIndex([0, 25, 50, 75], 30)).toBe(1); // Once
+  });
+});
+
+describe('rats per race', () => {
+  const load = (saved: object) => {
+    const store = { getItem: () => JSON.stringify(saved) };
+    const prev = globalThis.localStorage;
+    Object.defineProperty(globalThis, 'localStorage', { value: store, configurable: true });
+    try {
+      return loadSettings();
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', { value: prev, configurable: true });
+    }
+  };
+  it('defaults to the original three', () => {
+    expect(DEFAULT_SETTINGS.rats).toBe(3);
+    expect(load({}).rats).toBe(3);
+  });
+  it('keeps a saved count from 3 to 8 and clamps anything else', () => {
+    expect(load({ rats: 6 }).rats).toBe(6);
+    expect(load({ rats: 12 }).rats).toBe(8);
+    expect(load({ rats: 1 }).rats).toBe(3);
+    expect(load({ rats: 'lots' }).rats).toBe(3);
   });
 });
 

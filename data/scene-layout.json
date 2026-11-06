@@ -2,7 +2,7 @@
   "logical": {
     "width": 1024,
     "height": 768,
-    "note": "Fixed 1024x768 (4:3) scene, as in footage of the original (lane pitch measures 35 px at that size, matching the code). The window letterboxes or pillarboxes it with black bars."
+    "note": "Fixed 1024x768 (4:3) scene for the original three lanes, as in footage of the original (lane pitch measures 35 px at that size, matching the code). Races of more rats grow the scene, still 4:3 (see sceneSize in src/simulation/track.ts). The window letterboxes or pillarboxes it with black bars."
   },
   "track": {
     "lanes": 3,
@@ -11,13 +11,18 @@
     "outerRadius": 180,
     "finishBeforeCorner": 26,
     "laneLine": "rgba(255,255,255,0.85)",
-    "evidence": "Reference screenshot: 3 lanes, rounded-rectangle loop hugging the screen, start chute on the bottom straight, finish line near its right end. Lane pitch from gate rail 1001/0 (110 px = 3 lanes), photo 1300/0 (3 lane bands) and 3 board wells. Radius and margins measured from the screenshot (approximate)."
+    "evidence": "Reference screenshot: 3 lanes, rounded-rectangle loop hugging the screen, start chute on the bottom straight, finish line near its right end. Lane pitch from gate rail 1001/0 (110 px = 3 lanes), photo 1300/0 (3 lane bands) and 3 board wells. Radius and margins measured from the screenshot (approximate).",
+    "minInfield": 330,
+    "minInfieldNote": "Remake addition: the least infield height (inside the inside lane) a race of any size keeps, enough for the results board of 8 rats (two columns of 4 slots, 245 px) with room around it. The scene grows taller when the lanes would leave less.",
+    "outerRadiusNote": "outerRadius is for 3 lanes; each extra lane adds one lane pitch, so the inside lane's corner radius stays the same."
   },
   "gate": {
     "innerOffset": -14,
     "stagger": 117,
     "doorGap": 1,
-    "note": "Door frames 1200/0 (closed), 1200/1 (dropping) and 1200/2 (down, stays up for the rest of the race). Door positions measured from footage at 1024x768 (inner door x 175, then +117 per lane); timing from RR_D1 f03c2, see GATE_FRAME_MS."
+    "note": "Door frames 1200/0 (closed), 1200/1 (dropping) and 1200/2 (down, stays up for the rest of the race). Door positions measured from footage at 1024x768 (inner door x 175, then +117 per lane); timing from RR_D1 f03c2, see GATE_FRAME_MS.",
+    "finishClearance": 130,
+    "staggerNote": "stagger is the original per-lane step; when the outermost gate would come within finishClearance px (about one rat) of the finish line, the stagger shrinks to fit. With FAIR_CORNERS the corners repay whatever stagger is used."
   },
   "rat": {
     "noseOffset": 30

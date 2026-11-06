@@ -9,7 +9,7 @@ import { MacSlider, VOLUME_STEPS, volumeIcon, volumeStep } from './menu';
 import { MUSIC_CHOICES, loadSettings, musicChoice, musicForRace, musicLabel, saveSettings, type Settings } from './settings';
 import { RaceSeries, type RaceEvent } from './simulation/race';
 import { FixedStepper, SessionClock, STEP_SECONDS } from './simulation/session';
-import { Track } from './simulation/track';
+import { MAX_LANES, MIN_LANES, Track } from './simulation/track';
 import { TRAINING_LEVELS, trainingLabel } from './simulation/training';
 
 const params = new URLSearchParams(location.search);
@@ -47,15 +47,20 @@ async function main(): Promise<void> {
 
   const seedParam = Number(params.get('seed'));
   const newSeed = () => (Number.isFinite(seedParam) && params.has('seed') ? seedParam : (Math.random() * 2 ** 32) >>> 0);
-  let vp: Viewport = computeViewport(innerWidth, innerHeight, devicePixelRatio || 1);
+  // Lanes of the current series: the Rats setting as it was when the series began.
+  let lanes = settings.rats;
+  let vp: Viewport = computeViewport(innerWidth, innerHeight, devicePixelRatio || 1, lanes);
   const session = new SessionClock(Number(params.get('session') ?? 0) * 60);
-  const makeSeries = () =>
-    new RaceSeries(newSeed(), labels['2000'], () => settings.training, new Track(vp.width, vp.height), {
+  const makeSeries = () => {
+    lanes = settings.rats;
+    vp = computeViewport(innerWidth, innerHeight, devicePixelRatio || 1, lanes);
+    return new RaceSeries(newSeed(), labels['2000'], () => settings.training, new Track(vp.width, vp.height, lanes), {
       musicForRace: (i) => musicForRace(musicChoice(settings.musicLevel), i),
       trackVisible: () => session.trackVisible(settings.raceTrack),
       introPlaying: () => audio.currentMusic === 'intro',
       competitive: () => settings.competitive,
     });
+  };
   let series = makeSeries();
   const stepper = new FixedStepper(STEP_SECONDS);
   let speed = Math.max(0.25, Number(params.get('speed') ?? 1) || 1);
@@ -69,8 +74,8 @@ async function main(): Promise<void> {
     const dpr = devicePixelRatio || 1;
     canvas.width = Math.max(1, Math.round(innerWidth * dpr));
     canvas.height = Math.max(1, Math.round(innerHeight * dpr));
-    vp = computeViewport(innerWidth, innerHeight, dpr);
-    series.track = new Track(vp.width, vp.height);
+    vp = computeViewport(innerWidth, innerHeight, dpr, lanes);
+    series.track = new Track(vp.width, vp.height, lanes);
     // Whole-number scaling keeps the control panel art crisp.
     const menuScale = Math.max(1, Math.min(3, Math.floor(Math.min((innerWidth - 32) / 242, (innerHeight - 32) / 300))));
     document.documentElement.style.setProperty('--menu-scale', String(menuScale));
@@ -123,6 +128,13 @@ async function main(): Promise<void> {
     settings.training = v;
     commit();
   }, trainingLabel);
+  const ratCount = new MacSlider($('rats'), Array.from({ length: MAX_LANES - MIN_LANES + 1 }, (_, i) => MIN_LANES + i), (v) => {
+    settings.rats = v;
+    commit();
+    // Only settable from the menu, so the scene behind it can show the new field straight away.
+    if (!running) series = makeSeries();
+  }, String);
+  const ratsOut = $<HTMLOutputElement>('rats-label');
   const music = new MacSlider($('music'), MUSIC_CHOICES.map((m) => m.min), (v) => {
     settings.musicLevel = v;
     commit();
@@ -135,6 +147,8 @@ async function main(): Promise<void> {
     volume.value = String(settings.volume);
     training.set(settings.training);
     trainingOut.textContent = trainingLabel(settings.training);
+    ratCount.set(settings.rats);
+    ratsOut.textContent = String(settings.rats);
     music.set(settings.musicLevel);
     musicOut.textContent = musicLabel(settings.musicLevel);
     raceTrack.checked = settings.raceTrack;

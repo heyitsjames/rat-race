@@ -1,3 +1,4 @@
+import { DEFAULT_LANES, MAX_LANES, MIN_LANES } from './simulation/track';
 import { DEFAULT_TRAINING } from './simulation/training';
 
 /** Music choices from sUnt 1002 (slider values 0/25/50/75; saved default sVal 1002 = 30, i.e. Once). */
@@ -32,6 +33,8 @@ export interface Settings {
    * the winner crosses, so 2nd and 3rd are still contested, and every finish plays the ending.
    */
   competitive: boolean;
+  /** Rats per race, one per lane (not in the original, which always races three): 3-8. */
+  rats: number;
   /** Music slider position, 0-100 (sVal 1002). */
   musicLevel: number;
   sound: boolean;
@@ -42,6 +45,7 @@ export const DEFAULT_SETTINGS: Settings = {
   training: DEFAULT_TRAINING,
   raceTrack: true,
   competitive: false,
+  rats: DEFAULT_LANES,
   musicLevel: DEFAULT_MUSIC_LEVEL,
   sound: true,
   volume: 0.7,
@@ -64,6 +68,7 @@ export function loadSettings(): Settings {
     out.musicLevel = Math.min(100, Math.max(0, Number.isFinite(Number(out.musicLevel)) ? Number(out.musicLevel) : DEFAULT_MUSIC_LEVEL));
     out.raceTrack = !!out.raceTrack;
     out.competitive = !!out.competitive;
+    out.rats = Math.min(MAX_LANES, Math.max(MIN_LANES, Math.round(Number(out.rats)) || DEFAULT_LANES));
     out.sound = !!out.sound;
     return out;
   } catch {

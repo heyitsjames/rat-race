@@ -24,24 +24,50 @@ export interface TrackPoint {
 
 const T = layout.track;
 
+/** Lanes (and rats) per race: the original's three by default, up to eight. */
+export const DEFAULT_LANES = T.lanes;
+export const MIN_LANES = 3;
+export const MAX_LANES = 8;
+
+/**
+ * Logical scene size for a race of `lanes` rats. Three lanes is the original
+ * 1024x768. More lanes keep the same lane pitch and art at full size and grow
+ * the scene instead (still 4:3, so the window scales it down), once the
+ * infield inside the lanes would be shorter than `track.minInfield`.
+ */
+export function sceneSize(lanes: number): { width: number; height: number } {
+  const base = layout.logical;
+  const height = Math.max(base.height, Math.ceil(2 * T.margin + 2 * lanes * T.laneHeight + T.minInfield));
+  return { width: Math.round((height * base.width) / base.height), height };
+}
+
 export class Track {
   readonly width: number;
   readonly height: number;
-  readonly lanes = T.lanes;
+  readonly lanes: number;
   readonly laneHeight = T.laneHeight;
   readonly margin = T.margin;
-  readonly outerRadius = T.outerRadius;
+  /** Outer edge's corner radius: grows a lane pitch per extra lane, so the inside lane's corners never tighten. */
+  readonly outerRadius: number;
   readonly trackWidth: number;
   /** Lengths of the horizontal and vertical straights (same for every lane). */
   readonly straightH: number;
   readonly straightV: number;
+  /** Gate step between neighbouring lanes (px along the bottom straight). */
+  readonly gateStagger: number;
 
-  constructor(width: number, height: number) {
+  constructor(width: number, height: number, lanes: number = DEFAULT_LANES) {
     this.width = width;
     this.height = height;
+    this.lanes = lanes;
     this.trackWidth = this.lanes * this.laneHeight;
+    this.outerRadius = T.outerRadius + (lanes - T.lanes) * this.laneHeight;
     this.straightH = Math.max(0, width - 2 * this.margin - 2 * this.outerRadius);
     this.straightV = Math.max(0, height - 2 * this.margin - 2 * this.outerRadius);
+    // The original steps each gate 117 px; with more lanes that runs past the finish
+    // line, so the step shrinks to keep the outermost gate a rat's length short of it.
+    const room = this.finishX() - layout.gate.finishClearance - this.gateNoseX0();
+    this.gateStagger = lanes > 1 ? Math.max(0, Math.min(layout.gate.stagger, room / (lanes - 1))) : 0;
   }
 
   /** Inset from the outer edge of the centre line of (fractional) lane v; lane 0 is the inside lane. */
@@ -123,7 +149,11 @@ export class Track {
 
   /** Nose x of each lane's starting gate (staggered: outer lanes start further round). */
   gateNoseX(lane: number): number {
-    return this.margin + this.outerRadius + layout.gate.innerOffset + lane * layout.gate.stagger;
+    return this.gateNoseX0() + lane * this.gateStagger;
+  }
+
+  private gateNoseX0(): number {
+    return this.margin + this.outerRadius + layout.gate.innerOffset;
   }
 
   finishX(): number {

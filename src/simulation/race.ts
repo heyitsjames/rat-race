@@ -221,7 +221,9 @@ export class Race {
     this.stepRats(dt);
     switch (this.phase) {
       case 'racing':
-        if (this.finishOrder.length >= Math.min(3, this.rats.length)) this.enter('finishing');
+        // Every rat finishes (once the race is decided the rest run home), so wait for all
+        // of them: with the original three that is the 3 the board has places for.
+        if (this.finishOrder.length >= this.rats.length) this.enter('finishing');
         break;
       case 'finishing': {
         const allIn = this.rats.every((r) => !r.finished || !r.visible);

@@ -3,12 +3,13 @@ import type { Placing, Race } from '../simulation/race';
 import type { Pose, Rat } from '../simulation/rat';
 import type { Track } from '../simulation/track';
 import { GATE_FRAME_MS } from '../simulation/constants';
+import { DEFAULT_LANES, sceneSize } from '../simulation/track';
 import { BitmapFont } from './bitmap-font';
 import { animFrame, type Assets, drawFrame, frameRect, Recolorer } from './sprites';
 import labels from '../../public/assets/rat-race/rat-names-and-labels.json';
 
 export interface Viewport {
-  /** Logical scene size: always 1024x768 (4:3), as the original. */
+  /** Logical scene size: 1024x768 (4:3) for three lanes, as the original; larger for more (sceneSize). */
   width: number;
   height: number;
   /** Device pixels per logical pixel. */
@@ -18,9 +19,9 @@ export interface Viewport {
   offsetY: number;
 }
 
-/** Fit the fixed 4:3 scene inside the window, centred, with bars on the spare sides. */
-export function computeViewport(cssW: number, cssH: number, dpr: number): Viewport {
-  const { width, height } = layout.logical;
+/** Fit the 4:3 scene for this many lanes inside the window, centred, with bars on the spare sides. */
+export function computeViewport(cssW: number, cssH: number, dpr: number, lanes: number = DEFAULT_LANES): Viewport {
+  const { width, height } = sceneSize(lanes);
   const scale = Math.min((cssW * dpr) / width, (cssH * dpr) / height);
   return {
     width,
