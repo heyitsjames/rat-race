@@ -1,4 +1,5 @@
 import labels from '../public/assets/rat-race/rat-names-and-labels.json';
+import expandedNames from '../data/expanded-names.json';
 import { AudioEngine } from './audio';
 import { CornerLab } from './corner-lab';
 import { Inspector } from './debug';
@@ -58,7 +59,8 @@ async function main(): Promise<void> {
     lanes = lanesFor(settings.rats);
     const rats = settings.rats;
     vp = computeViewport(innerWidth, innerHeight, devicePixelRatio || 1, lanes);
-    return new RaceSeries(newSeed(), labels['2000'], () => settings.training, new Track(vp.width, vp.height, lanes), {
+    const names = settings.expandedNames ? [...labels['2000'], ...expandedNames] : labels['2000'];
+    return new RaceSeries(newSeed(), names, () => settings.training, new Track(vp.width, vp.height, lanes), {
       once: true,
       introPlaying: () => audio.currentMusic === 'intro',
       competitive: () => settings.competitive,
@@ -129,6 +131,7 @@ async function main(): Promise<void> {
   const volume = $<HTMLInputElement>('volume');
   const trainingOut = $<HTMLOutputElement>('training-label');
   const competitive = $<HTMLInputElement>('competitive');
+  const expanded = $<HTMLInputElement>('expanded-names');
   const menuLayer = $('menu-layer');
   const menuVolumeIcon = $<HTMLImageElement>('menu-volume-icon');
   const menuHelp = $('menu-help');
@@ -160,6 +163,7 @@ async function main(): Promise<void> {
     ratCount.set(settings.rats);
     ratsOut.textContent = String(settings.rats);
     competitive.checked = settings.competitive;
+    expanded.checked = settings.expandedNames;
     const step = volumeStep(settings.sound, settings.volume);
     menuVolumeIcon.src = volumeIcon(step);
     $('menu-volume').title = step === 0 ? 'Sound off' : `Sound volume ${step} of 7`;
@@ -230,6 +234,12 @@ async function main(): Promise<void> {
   competitive.onchange = () => {
     settings.competitive = competitive.checked;
     commit();
+  };
+  expanded.onchange = () => {
+    settings.expandedNames = expanded.checked;
+    commit();
+    // Like Rats, only settable from the menu: redraw the names on the board behind it.
+    if (!running) series = makeSeries();
   };
   // The speaker steps through the control panel's volume icons: off, 1, 2, 3, 5, 7.
   $('menu-volume').onclick = () => {

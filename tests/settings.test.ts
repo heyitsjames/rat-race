@@ -62,3 +62,37 @@ describe('competitive mode', () => {
     expect(DEFAULT_SETTINGS.competitive).toBe(false);
   });
 });
+
+describe('expanded names', () => {
+  const load = (saved: object) => {
+    const store = { getItem: () => JSON.stringify(saved) };
+    const prev = globalThis.localStorage;
+    Object.defineProperty(globalThis, 'localStorage', { value: store, configurable: true });
+    try {
+      return loadSettings();
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', { value: prev, configurable: true });
+    }
+  };
+  it('is off by default and survives a save', () => {
+    expect(DEFAULT_SETTINGS.expandedNames).toBe(false);
+    expect(load({ expandedNames: true }).expandedNames).toBe(true);
+    expect(load({ expandedNames: 'yes' }).expandedNames).toBe(true);
+    expect(load({}).expandedNames).toBe(false);
+  });
+
+  it('only uses characters the Ratvetica font can draw, with no repeats', async () => {
+    const extra: string[] = (await import('../data/expanded-names.json')).default;
+    const original: string[] = (await import('../public/assets/rat-race/rat-names-and-labels.json')).default['2000'];
+    const font = (await import('../data/font.json')).default as { glyphs: Record<string, unknown> };
+    for (const name of extra) {
+      expect(typeof name).toBe('string');
+      expect(name.trim()).toBe(name);
+      expect(name.length).toBeGreaterThan(0);
+      const missing = [...name].filter((ch) => ch !== ' ' && !(ch in font.glyphs));
+      expect(missing, `"${name}" uses characters the font lacks`).toEqual([]);
+    }
+    const all = [...original.map((n) => n.replace(/[\u0000-\u001f]/g, '').trim()), ...extra].map((n) => n.toLowerCase());
+    expect(all.filter((n, i) => all.indexOf(n) !== i), 'repeated names').toEqual([]);
+  });
+});

@@ -8,6 +8,8 @@ export interface Settings {
    * the winner crosses, so 2nd and 3rd are still contested, and every finish plays the ending.
    */
   competitive: boolean;
+  /** Expanded names (not in the original, off by default): add data/expanded-names.json to the name draw. */
+  expandedNames: boolean;
   /** Rats per race, one per lane (not in the original, which always races three): 3-8. */
   rats: number;
   sound: boolean;
@@ -17,6 +19,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   training: DEFAULT_TRAINING,
   competitive: false,
+  expandedNames: false,
   rats: DEFAULT_LANES,
   sound: true,
   volume: 0.7,
@@ -37,6 +40,7 @@ export function loadSettings(): Settings {
     out.training = Math.min(100, Math.max(0, Number(out.training) || 0));
     out.volume = Math.min(1, Math.max(0, Number(out.volume)));
     out.competitive = !!out.competitive;
+    out.expandedNames = !!out.expandedNames;
     out.rats = Math.min(MAX_LANES, Math.max(MIN_LANES, Math.round(Number(out.rats)) || DEFAULT_LANES));
     out.sound = !!out.sound;
     return out;
