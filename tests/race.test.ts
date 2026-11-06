@@ -288,14 +288,6 @@ describe('finish (RR_D1 stage 3+)', () => {
       expect(race.standings).toEqual(race.finishOrder);
     }
   });
-
-  it('never calls a photo finish when the track is hidden', () => {
-    for (let seed = 1; seed <= 20; seed++) {
-      const race = new Race({ seed, training: 100, names: NAMES, track, trackVisible: () => false });
-      while (race.phase !== 'done') race.step(1 / 30);
-      expect(race.photo).toBeNull();
-    }
-  });
 });
 
 describe('pipes and gates', () => {

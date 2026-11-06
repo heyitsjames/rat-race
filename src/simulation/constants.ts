@@ -3,8 +3,7 @@
  *
  * "RR_D1" is CODE 129 and "RR_D2" is CODE 130 of the module resource fork;
  * addresses are offsets into the disassemblies (see docs/RECONSTRUCTION.md).
- * The original runs on a millisecond clock (the 90-minute track timeout is
- * literally 5,400,000) and moves rats in whole pixels per step.
+ * The original runs on a millisecond clock and moves rats in whole pixels per step.
  */
 
 // ---- Stepping -------------------------------------------------------------
@@ -85,8 +84,6 @@ export const NAP_UNCURL_WIGGLES_SPREAD = 2;
 /** Finish line x = screen right - 184, minus 30 more with three lanes. RR_D1 0x1E32-0x1E46. */
 export const FINISH_FROM_RIGHT_PX = 184;
 export const FINISH_THREE_LANE_EXTRA_PX = 30;
-/** Track disappears after 90 minutes: now + 0x5265C0 ms. RR_D1 0x189A. */
-export const TRACK_TIMEOUT_MS = 5_400_000;
 /** Music control value / 25 gives Never, Once, Twice, Always. RR_D1 0x18AE. */
 export const MUSIC_CONTROL_STEP = 25;
 

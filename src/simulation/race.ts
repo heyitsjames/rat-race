@@ -78,7 +78,6 @@ export interface RaceOptions {
   /** Whether this race plays music (Music setting); without it the intro wait is 10 s. */
   withMusic?: boolean;
   /** Photo finishes need the track to be showing (original g03ba check). */
-  trackVisible?: () => boolean;
   /** True while the intro song is audibly playing; the gates wait for it (RR_D1 f5ca4). */
   introPlaying?: () => boolean;
   /** Competitive mode: distractions carry on until all but one rat have finished, not just the winner. */
@@ -114,7 +113,6 @@ export class Race {
   photo: PhotoFinish | null = null;
   /** Earliest staging time (ms) at which the gates may drop: intro length and gate timer. */
   readonly gatesNotBeforeMs: number;
-  private readonly trackVisible: () => boolean;
   private readonly introPlaying: () => boolean;
   private gatesOpenedMs = 0;
   private events: RaceEvent[];
@@ -125,7 +123,6 @@ export class Race {
     this.track = opts.track;
     this.withMusic = opts.withMusic ?? false;
     this.competitive = opts.competitive ?? false;
-    this.trackVisible = opts.trackVisible ?? (() => true);
     this.introPlaying = opts.introPlaying ?? (() => false);
     this.random = new Random(opts.seed);
     const names = this.random.shuffle(opts.names.map(cleanName).filter(Boolean));
@@ -240,7 +237,6 @@ export class Race {
    * straight, not running the wrong way, and within 20 px of the leader.
    */
   private takePhoto(winner: Rat): void {
-    if (!this.trackVisible()) return;
     const seg = Math.floor(winner.q);
     const len = this.track.segmentLength(seg, winner.lane);
     const close = this.rats
@@ -304,7 +300,6 @@ export interface SeriesOptions {
   withMusic?: boolean;
   /** Run one race and stop at 'done' instead of starting the next (default false). */
   once?: boolean;
-  trackVisible?: () => boolean;
   introPlaying?: () => boolean;
   /** Competitive mode for the next race (read as each race is set up). */
   competitive?: () => boolean;
@@ -348,7 +343,6 @@ export class RaceSeries {
       names: this.names,
       track: this.trackRef,
       withMusic: this.options.withMusic ?? true,
-      trackVisible: this.options.trackVisible,
       introPlaying: this.options.introPlaying,
       competitive: this.options.competitive?.() ?? false,
     });

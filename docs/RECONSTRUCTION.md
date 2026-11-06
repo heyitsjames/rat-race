@@ -7,10 +7,10 @@ How the remake was put together, what is backed by evidence from the original, a
 | Source | Used for |
 |---|---|
 | Rat Race 3.0 resource fork (SHA-256 `5385f6b3…16a4a`), extracted to PNG/JSON/WAV | All artwork, palettes, font, names, sound effects, settings labels |
-| Module code, CODE 129 (RR_D1) and CODE 130 (RR_D2), with relocations resolved (tools/re) | Training table, rat state machine, step timing, distraction odds, finish line, music IDs, 90-minute timer |
+| Module code, CODE 129 (RR_D1) and CODE 130 (RR_D2), with relocations resolved (tools/re) | Training table, rat state machine, step timing, distraction odds, finish line, music IDs |
 | Shared *AD 3.0 Sound* resource fork, via `resource_dasm` | SONG 30/40/45 MIDI and instrument samples |
 | Reference screenshot of the original | Track shape, 3 lanes, pipes, gates, finish line, board placement and content |
-| Original help text (TEXT 1000) | Settings descriptions, 90-minute track disappearance |
+| Original help text (TEXT 1000) | Settings descriptions |
 
 ## Fidelity table
 
@@ -33,7 +33,7 @@ Confidence: **High** = read directly from original data or code. **Medium** = ma
 | Lane changes | None: rats stay in their lane | No lane-change code exists in RR_D2 | High | none |
 | Distractions | Turn round and run the wrong way (1102/17-28), nap/curl (1101/24-32, 1102/0-16 vertically), stop and sniff (1101/12 rump + 13-17 front, 18 + 19-23 vertically) | RR_D2 states 6/7, f1c1a, f171e; frame numbers in code | High (what and when) / Medium (frame-by-frame choreography) | Nap and sniff frame sequences are simplified from the decoded control flow |
 | Training | Per-thousand odds per checkpoint (every 6 steps): Drop Out 450/150/50, Grade School 60/20/700, High School 50/250/500, Collegiate 50/100/350, Professional 25/75/200 (turn round / nap / sniff) | RR_D1 0x4126 (f4126) sets three globals compared against RandInt(1000) in RR_D2 0x0988 | High | none |
-| Start menu | After Dark-style window: AD 3.0 faceplate (PICT 128), module icon (icl4 1000), Training slider (sUnt/sVal 1000), Race Track checkbox (xVal 1001), help text (TEXT 1000), toaster slider thumbs (THUM 128 → ics8 128/130/131/132) and speaker icons (ICON 128-133), then a Run Race button | Faceplate from *After Dark 3.0 Faceplate*; thumbs and speaker icons from the *After Dark 4.94* control panel, as the AD 3.0 control panel itself isn't in the collection | Medium (art) / Low (layout) | Window layout, slider groove, fonts and thumb flap speed are approximations; the original panel had a module list and a Demo button rather than Run Race. **Remake change:** Run Race runs a single race; 10 s after it ends (all rats home) the menu returns, so the Music slider (sUnt/sVal 1002) is left out and every race plays music |
+| Start menu | After Dark-style window: AD 3.0 faceplate (PICT 128), module icon (icl4 1000), Training slider (sUnt/sVal 1000), help text (TEXT 1000), toaster slider thumbs (THUM 128 → ics8 128/130/131/132) and speaker icons (ICON 128-133), then a Run Race button | Faceplate from *After Dark 3.0 Faceplate*; thumbs and speaker icons from the *After Dark 4.94* control panel, as the AD 3.0 control panel itself isn't in the collection | Medium (art) / Low (layout) | Window layout, slider groove, fonts and thumb flap speed are approximations; the original panel had a module list and a Demo button rather than Run Race. **Remake change:** Run Race runs a single race; 10 s after it ends (all rats home) the menu returns, so the Music slider (sUnt/sVal 1002) is left out and every race plays music. The Race Track checkbox (xVal 1001) is left out too: the track is always drawn |
 | Cracked (added) | Sixth Training level at the top of the slider (100): turn round 10, nap 30, sniff 80 per thousand, and a wrong-way rat turns back at 150 per thousand (the original levels turn back at their turn-round odds) | Not in the original | — | Remake addition |
 | Recolouring | Exact colour substitution from clut 1100: 6 fur ramps × 5 silk ramps; silks unique within a race. **Remake addition:** 3 more silks (orange, teal, orchid) so races of up to 8 rats never repeat one, chosen by farthest-point search in OKLab from the original silks and clear of the fur colours (`extendSilks` in `tools/build-data.mjs`; orange replaces the search's magenta by owner's choice) | clut 1100 layout; ramp 0 equals sprite palettes exactly | High (data) / Medium (use) | clut 1101 and 1050/1051 and entries 80-101 (likely 16-colour variants) unused |
 | Entrants board | 1400/0 over 1400/1 in the infield centre, always showing the current race's three entrants (silk-coloured head 1150/0 and Ratvetica name, inner lane at the top); as each of the first three crosses the line its row gains W I N / P L A C E / S H O W (RatN 2003) under the name, rows staying in lane order (RR_D2 0x07E4-0x082C counter g03cc from 1, drawn at RR_D1 0x0F16; owner's screenshot); a photo finish replaces the panel with the photo for 3 s. **Remake addition:** 4 rats get a 4-well board and 5-8 rats two equal columns, made by repeating a 48 px strip of the original board (rows 50-98 repeat exactly); rats finishing fourth or later get F I N I S H (the photo-finish label, RatN 2002) under the name; the photo, which has 3 lane bands, shows the winner and the two closest centred in the first column's panel | Exact size fit to 1300/0 and 1150/0; footage shows the entrants during staging and racing | High | none |
@@ -42,7 +42,7 @@ Confidence: **High** = read directly from original data or code. **Medium** = ma
 | Sound effects | snd 1001 (gate/gun) as the gates drop; snd 1000 (click) is the photo-finish camera | Music player messages 3 and 2 sent from RR_D1 0x4D5E and 0x5182 | High | none |
 | Music | SONG 30 intro from staging, SONG 40 looping from the release, SONG 45 when the winner crosses | RR_D1 player messages 4, 5, 6 (0x4ABA, 0x4E10, 0x5072); song IDs at 0x5BD6-0x5C72 | High | Rendered offline with a simple sampler; the original MIDI synth's envelopes and mixing differ |
 | Music setting | Never / Once (first race of the session) / Twice (first two) / Always. **Not in the remake:** each run is one race, which always has music | Control value / 25 → count, decremented after each race unless 3 (RR_D1 0x18AE, 0x56EA) | High | none |
-| 90-minute rule | Track hidden once 90 min of running time has accumulated; rats keep racing | Help text | High (rule) / Low (clock) | See session clock decisions |
+| 90-minute rule | Track hidden once 90 min of running time has accumulated; rats keep racing (RR_D1 0x189A: now + 0x5265C0 ms). **Not in the remake:** each run is one race, so the clock would never get there | Help text | High | none |
 | Scale | Fixed 1024×768 (4:3) scene, letterboxed or pillarboxed in the window | Footage of the original at 1024×768 (lane pitch 35 px matches the code) | High | The original's 2-lane small-screen variant (1001/1, 1300/1, 1400/0 alone) isn't implemented |
 
 ## Recovered pacing and behaviour
@@ -62,12 +62,10 @@ From the rat state machine in RR_D2 (message handler 0x0420); constants with the
 - Typical race length at 1024×768: Professional winner ≈ 80 s, Collegiate ≈ 2 min, Grade/High School ≈ 2.5-3 min. Drop Out is close to a coin flip on each straight (45% turn-round odds both ways), but a wrong-way rat can't run back past the start of its straight, so progress ratchets forward a corner at a time: simulated over 500 races the winner crosses at 5-34 min (median 14, 99% within 30 min). As in the original, there is no time limit.
 - The original's speed was also bounded by its frame rate; on a slow 1994 Mac steps may have come later than these timers allow.
 
-## Session clock decisions
+## Frame timing decisions
 
-- The clock advances with simulated time only. It stops while paused and while the tab is hidden.
+- Simulated time stops while paused and while the tab is hidden.
 - Each frame contributes at most 0.25 s, so returning to a background tab never fast-forwards the race.
-- Moving the mouse or using the controls doesn't reset it. Restart does.
-- `?session=N` (minutes) and the debug "+30 min" button exist so the transition can be tested without waiting.
 
 ## Image record classification
 

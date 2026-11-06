@@ -2,7 +2,7 @@
 
 A browser reconstruction of the After Dark 3.0 screensaver module **Rat Race** (©1994 Berkeley Systems, Inc.; programming by Andrew Armstrong, art by Matt Small), built from the original artwork, sounds and music recovered from the module and the shared AD 3.0 Sound library.
 
-Three rats come out of the pipes, line up behind staggered gates, race one lap of a track that rings the screen, and leave through the pipes at the far end. The results board then shows in the infield while the next three line up. It runs unattended indefinitely. After 90 minutes the track disappears and the rats carry on racing on the grass, as in the original.
+Three rats come out of the pipes, line up behind staggered gates, race one lap of a track that rings the screen, and leave through the pipes at the far end. The results board then shows in the infield while the next three line up.
 
 This is a private, personal-use project. The artwork, sounds and music are Berkeley Systems' and are not relicensed here.
 
@@ -24,7 +24,7 @@ npm run preview    # serve the production build at http://localhost:4173
 
 ## Controls
 
-The page opens on a start menu modelled on the After Dark 3.0 control panel: the AD 3.0 faceplate, the module's own **Training** and **Music** sliders (with the control panel's flying-toaster slider thumbs) and **Race Track** checkbox, a speaker button that steps through the volume icons, and **?** for the module's help text. **Run Race** (or Enter) starts a fresh session; **Menu** in the control bar (or Esc) stops it and returns to the menu. Add `?run=1` to skip the menu.
+The page opens on a start menu modelled on the After Dark 3.0 control panel: the AD 3.0 faceplate, the module's own **Training** slider (with the control panel's flying-toaster slider thumbs), a speaker button that steps through the volume icons, and **?** for the module's help text. **Run Race** (or Enter) starts a fresh session; **Menu** in the control bar (or Esc) stops it and returns to the menu. Add `?run=1` to skip the menu.
 
 While racing, the control bar and cursor hide after 3 seconds without input; move the mouse or press a key to bring them back.
 
@@ -32,13 +32,12 @@ While racing, the control bar and cursor hide after 3 seconds without input; mov
 |---|---|
 | Enter | Run Race (from the menu) |
 | Space | Pause / resume |
-| R | Restart (new races, resets the 90-minute clock) |
+| R | Restart the race |
 | F | Fullscreen |
 | M | Sound on/off |
-| T | Race Track on/off |
 | Esc | Close About, otherwise back to the menu |
 
-Settings (saved in this browser): **Training** (Drop Out … Professional, plus an added **Cracked** level at the top), **Race Track**, **Competitive**, **Rats**, sound and volume. Run Race runs one race, with music; 10 seconds after it ends the menu comes back. Browsers only allow audio after a click or key press; pressing Run Race counts.
+Settings (saved in this browser): **Training** (Drop Out … Professional, plus an added **Cracked** level at the top), **Competitive**, **Rats**, sound and volume. Run Race runs one race, with music; 10 seconds after it ends the menu comes back. Browsers only allow audio after a click or key press; pressing Run Race counts.
 
 ## Debug tools
 
@@ -46,10 +45,9 @@ Add query parameters to the URL:
 
 | Parameter | Effect |
 |---|---|
-| `?debug=1` | Diagnostics panel: seed, phase, per-rat mode/position, session clock, audio nodes, recolour cache. Buttons for +30 min, speed ×1/×4/×16, the frame inspector and ending the current race. |
+| `?debug=1` | Diagnostics panel: seed, phase, per-rat mode/position, audio nodes, recolour cache. Buttons for speed ×1/×4/×16, the frame inspector and ending the current race. |
 | `?seed=1234` | Fixed seed for reproducible races (outcomes also depend on window size, which sets the track shape). |
 | `?speed=16` | Simulation speed multiplier. |
-| `?session=90` | Start the 90-minute clock at N minutes (90 hides the track immediately). |
 | `?corners=1` | Corner lab: one rat per lane loops round the bottom-right corner. Keys 1-7 switch between corner animation styles (1 is what races use), Space pauses, `[` `]` change the speed. |
 | `?inspect=1` | Open the frame inspector (also `I` with `?debug=1`): step through every animation state, with anchor, bounding box, RLEP ID/frame, mirroring and recolouring. |
 
@@ -64,7 +62,7 @@ src/simulation/           pure, DOM-free simulation (tested)
   track.ts                rounded-rectangle loop geometry
   rat.ts                  rat actor wrapper: step timer, position, sprite poses
   race.ts                 race lifecycle and race series
-  session.ts              90-minute clock, fixed-step timing
+  session.ts              fixed-step timing
   training.ts             Training levels and tuning curves
   random.ts               seeded PRNG
 src/render/               Canvas 2D rendering, recolouring, Ratvetica font

@@ -3,28 +3,8 @@ import {
   clampFrameDelta,
   FixedStepper,
   MAX_FRAME_SECONDS,
-  SessionClock,
   STEP_SECONDS,
-  TRACK_FADE_AFTER_SECONDS,
 } from '../src/simulation/session';
-
-describe('session clock', () => {
-  it('hides the track after 90 minutes but respects the Race Track setting', () => {
-    const c = new SessionClock();
-    expect(c.trackVisible(true)).toBe(true);
-    expect(c.trackVisible(false)).toBe(false);
-    c.add(TRACK_FADE_AFTER_SECONDS - 1);
-    expect(c.trackVisible(true)).toBe(true);
-    c.add(1);
-    expect(c.trackVisible(true)).toBe(false);
-    c.reset();
-    expect(c.trackVisible(true)).toBe(true);
-  });
-
-  it('supports a debug offset', () => {
-    expect(new SessionClock(TRACK_FADE_AFTER_SECONDS).trackExpired).toBe(true);
-  });
-});
 
 describe('frame timing', () => {
   it('clamps long gaps such as returning to a background tab', () => {

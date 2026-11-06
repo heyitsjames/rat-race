@@ -89,14 +89,14 @@ export class SceneRenderer {
     this.trackPattern = ctx.createPattern(assets.track, 'repeat');
   }
 
-  render(race: Race, vp: Viewport, showTrack: boolean): void {
+  render(race: Race, vp: Viewport): void {
     const { ctx } = this;
     const track = race.track;
     sceneTransform(ctx, vp);
     ctx.imageSmoothingEnabled = false;
 
     this.fill(this.grass, () => ctx.rect(0, 0, vp.width, vp.height));
-    if (showTrack) this.drawTrack(track, this.doorFrame(race));
+    this.drawTrack(track, this.doorFrame(race));
 
     const placed = race.rats
       .filter((rat) => rat.visible)
@@ -116,7 +116,7 @@ export class SceneRenderer {
       ctx.restore();
     }
     // Pipe mouths go over the rats so they vanish into them.
-    if (showTrack) this.drawPipes(track);
+    this.drawPipes(track);
 
     // The board always shows this race's entrants, inner lane at the top; a photo
     // finish replaces the name panel with the photo for 3 s. As each of the first
