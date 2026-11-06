@@ -59,6 +59,7 @@ export class SceneRenderer {
   readonly recolor: Recolorer;
   private grass: CanvasPattern | null;
   private trackPattern: CanvasPattern | null;
+  private boardImage: HTMLCanvasElement | null = null;
 
   constructor(
     private readonly ctx: CanvasRenderingContext2D,
@@ -222,6 +223,27 @@ export class SceneRenderer {
     drawFrame(this.ctx, this.recolor.sheet(sheet, rat.fur, rat.silk), rect, x, y, opts);
   }
 
+  /**
+   * The board's two pieces (1400/0 over 1400/1) joined into one image. Drawn
+   * separately, the join can land mid-pixel at non-integer scales and let the
+   * grass show through as a faint line.
+   */
+  private board(): HTMLCanvasElement {
+    if (this.boardImage) return this.boardImage;
+    const b = layout.board;
+    const t0 = frameRect(1400, 0);
+    const t1 = frameRect(1400, 1);
+    const c = document.createElement('canvas');
+    c.width = b.width;
+    c.height = b.topHeight + t1.h;
+    const g = c.getContext('2d')!;
+    const s = this.assets.sheets['1400'];
+    g.drawImage(s, t0.x, t0.y, t0.w, t0.h, 0, 0, t0.w, t0.h);
+    g.drawImage(s, t1.x, t1.y, t1.w, t1.h, 0, b.topHeight, t1.w, t1.h);
+    this.boardImage = c;
+    return c;
+  }
+
   /** Results board in the infield (1400/0 over 1400/1), one head and name per well. */
   private drawBoard(vp: Viewport, placings: Placing[], photoRace: Race | null, places: number[] = []): void {
     const { ctx } = this;
@@ -230,9 +252,7 @@ export class SceneRenderer {
     const t1 = frameRect(1400, 1);
     const bx = Math.round(vp.width / 2 - b.width / 2);
     const by = Math.round(vp.height / 2 - (t0.h + t1.h) / 2);
-    const s = this.assets.sheets['1400'];
-    ctx.drawImage(s, t0.x, t0.y, t0.w, t0.h, bx, by, t0.w, t0.h);
-    ctx.drawImage(s, t1.x, t1.y, t1.w, t1.h, bx, by + b.topHeight, t1.w, t1.h);
+    ctx.drawImage(this.board(), bx, by);
     const px = bx + b.panel.x;
     const py = by + b.panel.y;
 
