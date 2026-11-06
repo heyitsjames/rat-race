@@ -389,7 +389,8 @@ describe('more rats', () => {
       expect(w).toBeGreaterThan(30);
       expect(w).toBeLessThan(70);
     }
-  });
+    // 400 eight-rat races take about 5 s, right at vitest's default limit
+  }, 30_000);
 });
 
 describe('distractions in corners', () => {
