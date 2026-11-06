@@ -293,11 +293,13 @@ def write_pict(magick, data, path, tmp):
 
 
 # The remake's settings differ from the original's, so its help text is edited
-# to match: Competitive replaces Race Track and Music, and the track always shows.
+# to match: Competitive and Expanded names replace Race Track and Music, and the
+# track always shows.
 HELP_EDITS = [
     ('"Race Track" determines whether or not the race track will appear.\n'
      '"Music" determines how often the music will play.\n',
-     '"Competitive" determines whether or not the rats keep racing for second place after the winner crosses.\n'),
+     '"Competitive" determines whether or not the rats keep racing for second place after the winner crosses.\n'
+     '"Expanded names" adds more names to the list the rats are named from.\n'),
     ('After 90 minutes of uninterrupted racing the track will disappear, but the tireless rats will continue racing.\n\n', ''),
 ]
 
