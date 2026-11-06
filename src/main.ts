@@ -14,7 +14,7 @@ import { TRAINING_LEVELS, trainingLabel } from './simulation/training';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
-const IDLE_MS = 3000;
+const IDLE_MS = 1500;
 /** How long the finished race stays on screen before the menu comes back. */
 const BACK_TO_MENU_SECONDS = 10;
 /** Most of the window (each way) the start menu may take up. */

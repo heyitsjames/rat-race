@@ -61,6 +61,16 @@ export class AudioEngine {
   /** Call from a user gesture. Safe to call repeatedly. */
   unlock(): void {
     if (!this.ctx) {
+      // iOS treats Web Audio as ambient sound, which the ring/silent switch mutes.
+      // Safari 17+ lets a page ask to be treated as media playback instead.
+      const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+      if (session) {
+        try {
+          session.type = 'playback';
+        } catch {
+          /* not supported */
+        }
+      }
       const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!Ctor) return;
       this.ctx = new Ctor();
@@ -76,6 +86,22 @@ export class AudioEngine {
       void this.loadAll();
     }
     this.syncRunning();
+    this.kick();
+  }
+
+  private kicked = false;
+  /**
+   * Older iOS only fully unlocks audio once a sound has started inside a user
+   * gesture, so play one silent sample on the first gesture.
+   */
+  private kick(): void {
+    if (this.kicked || !this.ctx || this.paused || this.hidden) return;
+    this.kicked = true;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.ctx.createBuffer(1, 1, 22050);
+    src.connect(this.ctx.destination);
+    src.onended = () => src.disconnect();
+    src.start(0);
   }
 
   /** Start the music the current race wants, if none is playing and audio can play. */
