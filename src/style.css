@@ -475,3 +475,8 @@ select:focus-visible {
 body.idle .race-end {
   cursor: default;
 }
+
+/* The finished race's results board can be clicked to show places and times. */
+body.board-clickable:not(.idle) #scene {
+  cursor: pointer;
+}

@@ -181,6 +181,7 @@ async function main(): Promise<void> {
   };
   /** The same rats race again with fresh luck, so the result can change. */
   const restart = () => {
+    scene.showTimes = false;
     audio.stopAll();
     series.rerun();
     stepper.reset();
@@ -189,6 +190,7 @@ async function main(): Promise<void> {
   const startRacing = () => {
     audio.unlock();
     running = true;
+    scene.showTimes = false;
     audio.stopAll();
     series = makeSeries();
     stepper.reset();
@@ -197,6 +199,7 @@ async function main(): Promise<void> {
   };
   const showMenu = () => {
     running = false;
+    scene.showTimes = false;
     audio.stopAll();
     setPaused(false);
     series = makeSeries();
@@ -223,6 +226,20 @@ async function main(): Promise<void> {
   const raceEnd = $('race-end');
   $('end-restart').onclick = restart;
   $('end-new-race').onclick = showMenu;
+  // Once the race is over, clicking or tapping the results board switches between
+  // WIN / PLACE / SHOW and each rat's place and time.
+  const onBoard = (e: MouseEvent) => {
+    const b = scene.boardRect;
+    if (!running || !series.done || inspector.active || !b) return false;
+    const dpr = devicePixelRatio || 1;
+    const x = (e.clientX * dpr - vp.offsetX) / vp.scale;
+    const y = (e.clientY * dpr - vp.offsetY) / vp.scale;
+    return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+  };
+  canvas.addEventListener('click', (e) => {
+    if (onBoard(e)) scene.showTimes = !scene.showTimes;
+  });
+  canvas.addEventListener('pointermove', (e) => document.body.classList.toggle('board-clickable', onBoard(e)));
   const placeRaceEnd = () => {
     const show = running && series.done && !inspector.active && !!scene.boardRect;
     raceEnd.hidden = !show;

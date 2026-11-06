@@ -43,6 +43,21 @@ export function sceneTransform(ctx: CanvasRenderingContext2D, vp: Viewport): voi
 const [PHOTO, FINISH] = labels['2002'];
 /** RatN 2003: W I N / P L A C E / S H O W. */
 const PLACE_LABELS = labels['2003'];
+
+/** 1st, 2nd, 3rd, 4th ... */
+export function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  return n + (teen ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+}
+
+/** Race time as mm:ss.xx (minutes, seconds, hundredths). */
+export function formatRaceTime(seconds: number): string {
+  const hundredths = Math.round(Math.max(0, seconds) * 100);
+  const mm = Math.floor(hundredths / 6000);
+  const ss = Math.floor((hundredths % 6000) / 100);
+  const xx = hundredths % 100;
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}.${String(xx).padStart(2, '0')}`;
+}
 /** Furthest a placed rat is drawn behind the winner in the photo-finish still. */
 const PHOTO_MAX_GAP_PX = 70;
 /** How far past the line the winner's nose is drawn in the still. */
@@ -78,6 +93,8 @@ export class SceneRenderer {
   private grass: CanvasPattern | null;
   private trackPattern: CanvasPattern | null;
   private boardImages = new Map<number, HTMLCanvasElement>();
+  /** Results board shows each finisher's place and time (from the gates) instead of WIN / PLACE / SHOW. */
+  showTimes = false;
   /** Where the results board was last drawn, in scene pixels (null before the first draw). */
   boardRect: { x: number; y: number; w: number; h: number } | null = null;
 
@@ -128,7 +145,8 @@ export class SceneRenderer {
     const entrants = [...race.rats].sort((a, b) => a.lane - b.lane);
     const standings = race.standings;
     const places = entrants.map((r) => (r.finished ? standings.indexOf(r) : -1));
-    this.drawBoard(vp, entrants, race.photoVisible ? race : null, places);
+    const times = entrants.map((r) => r.finishTime);
+    this.drawBoard(vp, entrants, race.photoVisible ? race : null, places, times);
   }
 
   private fill(pattern: CanvasPattern | null, path: () => void, rule: CanvasFillRule = 'nonzero'): void {
@@ -287,7 +305,13 @@ export class SceneRenderer {
    * single three-well board for three rats, taller or in two columns for more
    * (boardGrid), inner lanes first down the left column.
    */
-  private drawBoard(vp: Viewport, placings: Placing[], photoRace: Race | null, places: number[] = []): void {
+  private drawBoard(
+    vp: Viewport,
+    placings: Placing[],
+    photoRace: Race | null,
+    places: number[] = [],
+    times: (number | null)[] = [],
+  ): void {
     const { ctx } = this;
     const b = layout.board;
     const { columns, rows } = boardGrid(placings.length);
@@ -319,7 +343,11 @@ export class SceneRenderer {
       // WIN / PLACE / SHOW for the top three; every later finisher gets the photo
       // finish's own "F I N I S H" (remake addition: the original board had three rows).
       const place = places[k] ?? -1;
-      const label = place < 0 ? undefined : (PLACE_LABELS[place] ?? FINISH);
+      const time = times[k];
+      const label =
+        place < 0 ? undefined
+        : this.showTimes && time != null ? `${ordinal(place + 1)}  ${formatRaceTime(time)}`
+        : (PLACE_LABELS[place] ?? FINISH);
       if (label) lines.push(label);
       const centre = wellY + head.h / 2;
       const top = centre - (lines.length * BOARD_LINE_HEIGHT) / 2;

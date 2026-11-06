@@ -86,7 +86,7 @@ While racing, the control bar and cursor hide after 1.5 seconds without input; m
 | M | Sound on/off |
 | Esc | Close About, otherwise back to the menu |
 
-Settings (saved in this browser): **Training** (Drop Out … Professional, plus an added **Cracked** level at the top), **Competitive**, **Rats**, sound and volume. Run Race runs one race, with music. When it ends, two buttons appear under the results board: **Restart** runs the same rats again (same names, colours and lanes) with fresh luck, so the result can change, and **New Race** goes back to the menu. Browsers only allow audio after a click or key press; pressing Run Race counts.
+Settings (saved in this browser): **Training** (Drop Out … Professional, plus an added **Cracked** level at the top), **Competitive**, **Rats**, sound and volume. Run Race runs one race, with music. When it ends, two buttons appear under the results board: **Restart** runs the same rats again (same names, colours and lanes) with fresh luck, so the result can change, and **New Race** goes back to the menu. Click or tap the results board to switch between WIN / PLACE / SHOW and each rat's place and time from the gates (mm:ss.xx). Browsers only allow audio after a click or key press; pressing Run Race counts.
 
 ## Debug tools
 
