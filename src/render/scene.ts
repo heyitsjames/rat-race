@@ -55,6 +55,17 @@ const BOARD_PANEL_PADDING = 4;
 const PHOTO_LABEL_TOP_PX = 9;
 const PHOTO_LABEL_BOTTOM_PX = 13;
 
+/**
+ * Pipe pieces, inside lane first, that make up a column of `lanes` pipe mouths:
+ * three-pipe pieces (1001/0) with two-pipe ones (1001/1) for the remainder,
+ * e.g. 8 = 3 + 3 + 2 and 7 = 3 + 2 + 2.
+ */
+export function pipePieces(lanes: number): number[] {
+  const twos = [0, 2, 1][lanes % 3];
+  const threes = (lanes - 2 * twos) / 3;
+  return [...Array(threes).fill(3), ...Array(twos).fill(2)];
+}
+
 export class SceneRenderer {
   readonly font: BitmapFont;
   readonly recolor: Recolorer;
@@ -173,16 +184,22 @@ export class SceneRenderer {
   }
 
   /**
-   * Pipe mouths (1001/0, exactly three lanes tall) at both ends of the start
-   * chute: rats come out of the left one and leave through the right one.
+   * Pipe mouths at both ends of the start chute: rats come out of the left one
+   * and leave through the right one. The original three lanes use 1001/0 (three
+   * pipes, 110 px); other counts stack it with the small-screen 1001/1 (two
+   * pipes, 73 px), which has the same lane pitch (see pipePieces).
    */
   private drawPipes(track: Track): void {
     const { ctx } = this;
-    const pipe = frameRect(1001, 0);
     const img = this.assets.sheets['1001'];
-    const y = Math.round(track.height - track.margin - track.trackWidth);
-    ctx.drawImage(img, pipe.x, pipe.y, pipe.w, pipe.h, track.margin, y, pipe.w, pipe.h);
-    ctx.drawImage(img, pipe.x, pipe.y, pipe.w, pipe.h, Math.round(track.width - track.margin - pipe.w), y, pipe.w, pipe.h);
+    let lane = 0;
+    for (const size of pipePieces(track.lanes)) {
+      const pipe = frameRect(1001, size === 3 ? 0 : 1);
+      const y = Math.round(track.height - track.margin - track.trackWidth + lane * track.laneHeight);
+      ctx.drawImage(img, pipe.x, pipe.y, pipe.w, pipe.h, track.margin, y, pipe.w, pipe.h);
+      ctx.drawImage(img, pipe.x, pipe.y, pipe.w, pipe.h, Math.round(track.width - track.margin - pipe.w), y, pipe.w, pipe.h);
+      lane += size;
+    }
   }
 
   /**

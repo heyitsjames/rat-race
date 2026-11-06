@@ -79,7 +79,7 @@ From the rat state machine in RR_D2 (message handler 0x0420); constants with the
 | 1102/4 | Used: standing pose on vertical straights |
 | 1101/12-23 | Used: sniff (still rump + moving front half, horizontal and vertical) |
 | 1001/0 | Used: pipe mouths |
-| 1001/1 | Not used: 2-lane pipe (small-screen variant) |
+| 1001/1 | 2-lane pipe (small-screen variant in the original); the remake stacks it with 1001/0 for 4-8 lanes (`pipePieces`) |
 | 1150/0 | Used: results heads |
 | 1150/1-2 | Not yet understood: highlight frame and large head (perhaps the control-panel preview) |
 | 1200/0-2 | Used: gate doors |

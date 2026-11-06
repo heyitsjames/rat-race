@@ -31,3 +31,15 @@ describe('sniff pieces', () => {
     }
   });
 });
+
+describe('pipe mouths', () => {
+  it('builds every lane count from the three- and two-pipe pieces, the original 1001/0 alone for three', async () => {
+    const { pipePieces } = await import('../src/render/scene');
+    expect(pipePieces(3)).toEqual([3]);
+    expect(pipePieces(4)).toEqual([2, 2]);
+    expect(pipePieces(5)).toEqual([3, 2]);
+    expect(pipePieces(6)).toEqual([3, 3]);
+    expect(pipePieces(7)).toEqual([3, 2, 2]);
+    expect(pipePieces(8)).toEqual([3, 3, 2]);
+  });
+});
