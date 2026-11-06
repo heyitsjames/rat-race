@@ -340,12 +340,13 @@ describe('recovered Training odds', () => {
         }
       }
       const total = counts.turnAround + counts.nap + counts.sniff;
-      // the split between distraction kinds follows the table (turnarounds also include
-      // automatic ones at the start of a straight, so allow some slack there)
-      const share = (n: number) => n / total;
+      // The split between distraction kinds follows the table. Turnarounds also include
+      // automatic ones at the start of a straight, which skews shares of the total (most
+      // at Drop Out, where nap runs about 0.1 low), so naps are checked against sniffs
+      // alone, which only the dice start; sniffs against the total keep some slack.
       const want = row.turnAround + row.nap + row.sniff;
-      expect(Math.abs(share(counts.nap) - row.nap / want)).toBeLessThan(0.1);
-      expect(Math.abs(share(counts.sniff) - row.sniff / want)).toBeLessThan(0.15);
+      expect(Math.abs(counts.nap / (counts.nap + counts.sniff) - row.nap / (row.nap + row.sniff))).toBeLessThan(0.06);
+      expect(Math.abs(counts.sniff / total - row.sniff / want)).toBeLessThan(0.15);
     }
   });
 });

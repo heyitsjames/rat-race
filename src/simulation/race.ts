@@ -7,6 +7,7 @@ import {
   PHOTO_FINISH_RANGE_PX,
   PHOTO_SHOW_MS,
 } from './constants';
+import palette from '../../data/palette-mappings.json';
 import { Random } from './random';
 import { Rat } from './rat';
 import { Track } from './track';
@@ -128,8 +129,8 @@ export class Race {
     this.introPlaying = opts.introPlaying ?? (() => false);
     this.random = new Random(opts.seed);
     const names = this.random.shuffle(opts.names.map(cleanName).filter(Boolean));
-    const silks = this.random.shuffle([...Array(opts.silkCount ?? 5).keys()]);
-    const furCount = opts.furCount ?? 6;
+    const silks = this.random.shuffle([...Array(opts.silkCount ?? palette.silks.length).keys()]);
+    const furCount = opts.furCount ?? palette.furs.length;
     this.rats = [];
     for (let lane = 0; lane < this.track.lanes; lane++) {
       this.rats.push(
