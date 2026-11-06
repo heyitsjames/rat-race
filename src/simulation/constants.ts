@@ -147,8 +147,34 @@ export const CORNER_SPEED_BLEND = 1;
  * up a little through corners, much less than the original.
  *
  * The inside lane would still spend more of that time on straights, where
- * distractions are rolled, so the same corner distance is credited toward
- * checkpoints (RatContext.checkpointCredit). Winner share by lane is within
- * about 2 points of a third at every Training level (3,000 races each).
+ * distractions are rolled. Without CORNER_DISTRACTIONS the same corner distance is
+ * credited toward checkpoints on the next straight (RatContext.checkpointCredit);
+ * with it, corners roll for themselves.
  */
 export const FAIR_CORNERS = true;
+
+/**
+ * Not in the original: distractions in corners (owner's choice, 2026-11-05;
+ * needs FAIR_CORNERS). With FAIR_CORNERS alone, outer lanes spend more of the
+ * race in corners, where nothing distracts a rat, and are owed the difference
+ * as extra rolls on the next straight. Those rolls land within the first
+ * 40-90 px, right by the wrong-way limit, so a turnaround there costs almost
+ * nothing, and with 4-8 lanes the outer lanes won up to twice their share at
+ * the slower Training levels. With this on, rolls happen every
+ * CHECKPOINT_SPACING_PX of "fair" distance all the way round, corners included
+ * (a corner counts as the inside lane's corner plus CORNER_REPAY x a quarter
+ * of the lane's stagger); a rat can sniff or nap in a corner, and one that
+ * turns round there runs back through the corner and on down the straight
+ * behind it.
+ */
+export const CORNER_DISTRACTIONS = true;
+
+/**
+ * Share of each lane's gate head start that its four corners repay (FAIR_CORNERS):
+ * 1 repays it exactly. Tried at 1.05 and 1.1: the slower Training levels came out
+ * flatter but Cracked tipped toward the inside lane, so it stays at 1. Measured with
+ * tools/lane-slope.ts over 1,000 races per level and rat count (4-8): the worst cells
+ * leave the outer lanes 1-2 points of win share ahead (e.g. 8 rats at Grade School,
+ * 14.2% outside vs 11.5% inside, fair 12.5%), down from up to 9 points.
+ */
+export const CORNER_REPAY = 1;

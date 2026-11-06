@@ -101,13 +101,14 @@ export class Rat {
   get sniffing(): boolean {
     return (
       this.snap.matches({ run: 'sniffing' }) ||
+      this.snap.matches({ corner: 'sniffing' }) ||
       this.snap.matches({ wrongWay: 'sniffing' }) ||
       this.snap.matches({ gate: 'sniffing' })
     );
   }
 
   get napping(): boolean {
-    return this.snap.matches({ run: 'napping' });
+    return this.snap.matches({ run: 'napping' }) || this.snap.matches({ corner: 'napping' });
   }
 
   get q(): number {

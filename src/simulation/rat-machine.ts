@@ -38,6 +38,8 @@ import {
   CORNER_SPEED_BLEND,
   FAIR_CORNERS,
   CHECKPOINT_SPACING_PX,
+  CORNER_DISTRACTIONS,
+  CORNER_REPAY,
 } from './constants';
 import type { Random } from './random';
 import type { Track } from './track';
@@ -130,6 +132,12 @@ export interface RatContext {
   cornerSteps: number;
   /** Gait frame the rat was on when it entered the corner; the walk cycle carries on from it. */
   cornerGait: number;
+  /** CORNER_DISTRACTIONS: step interval for running this corner at the rat's pace (straightInterval). */
+  cornerInterval: number;
+  /** CORNER_DISTRACTIONS: "fair" px of this corner covered per step. */
+  cornerFairStep: number;
+  /** CORNER_DISTRACTIONS: fair px run since the last checkpoint while in a corner. */
+  cornerFair: number;
 }
 
 export interface RatInput {
@@ -170,6 +178,140 @@ function moveAlong(c: Pick<RatContext, 'q' | 'chuteX' | 'lane'>, px: number, tra
   }
   const len = track.segmentLength(Math.floor(q), c.lane) || 1;
   return { q: q + px / len, chuteX };
+}
+
+/**
+ * FAIR_CORNERS timing for corner `seg` in this lane at a straight-line pace of
+ * `pace` ms per stride: stride-sized steps, taking the time the rat needs to
+ * run the inside lane's corner plus CORNER_REPAY x a quarter of its gate stagger.
+ */
+function cornerTiming(track: Track, lane: number, seg: number, pace: number) {
+  const cornerPx = track.segmentLength(seg, lane);
+  const stagger = track.gateNoseX(lane) - track.gateNoseX(0);
+  const fairPx = track.segmentLength(seg, 0) + (CORNER_REPAY * stagger) / 4;
+  const steps = Math.max(CORNER_FRAMES, Math.round(cornerPx / STRIDE_PX));
+  return { steps, fairStep: fairPx / steps, interval: fairPx / (STRIDE_PX / pace) / steps };
+}
+
+/**
+ * CORNER_DISTRACTIONS: race progress in "fair" px from this lane's gate: straights
+ * count their length, corners their fair length (cornerTiming), so every lane's
+ * finish is the same progress away. Positions in the start chute count back from q 0.
+ */
+function fairProgress(track: Track, lane: number, q: number, chuteX: number | null = null): number {
+  const left = track.margin + track.outerRadius;
+  const gateX = track.gateNoseX(lane) - NOSE;
+  if (chuteX !== null) return chuteX - gateX;
+  const corner = track.segmentLength(1, 0) + (CORNER_REPAY * (track.gateNoseX(lane) - track.gateNoseX(0))) / 4;
+  let p = left - gateX;
+  // just behind the start of the first straight (a step back from q 0) still counts as straight
+  if (q < 0) return p + q * track.segmentLength(0, lane);
+  const whole = Math.floor(q);
+  for (let s = 0; s < whole; s++) p += s % 2 ? corner : track.segmentLength(s, lane);
+  return p + (q - whole) * (whole % 2 ? corner : track.segmentLength(whole, lane));
+}
+
+/** Inverse of fairProgress on the loop (progress at or past q 0). */
+function qAtProgress(track: Track, lane: number, p: number): number {
+  const left = track.margin + track.outerRadius;
+  const corner = track.segmentLength(1, 0) + (CORNER_REPAY * (track.gateNoseX(lane) - track.gateNoseX(0))) / 4;
+  let rest = p - (left - (track.gateNoseX(lane) - NOSE));
+  for (let s = 0; ; s++) {
+    const len = (s % 2 ? corner : track.segmentLength(s, lane)) || 1;
+    if (rest < len || s >= 9) return s + Math.max(0, rest) / len;
+    rest -= len;
+  }
+}
+
+/**
+ * CORNER_DISTRACTIONS: the inside lane's wrong-way limits as race progress, shared by
+ * every lane so all run the same race: the start of the first straight, each later
+ * straight 65 px in (WRONG_WAY_LIMIT_PX), and each corner's entry. A rat behind the
+ * first of them (in the chute) turns back at once.
+ */
+function wrongWayLimit(track: Track, p: number): number {
+  let best = -Infinity;
+  for (let s = 0; s <= 8; s++) {
+    const at = fairProgress(track, 0, s) + (s % 2 === 0 && s > 0 ? WRONG_WAY_LIMIT_PX : 0);
+    if (at <= p + 1e-9) best = Math.max(best, at);
+  }
+  return best === -Infinity ? p : best;
+}
+
+/** Gait counter that puts the next straight checkpoint `fair` px after the last one. */
+const counterFromFair = (fair: number) => Math.min(CHECKPOINT_GAIT_FRAME, Math.max(-1, Math.floor(fair / STRIDE_PX) - 1));
+const inCorner = (c: Pick<RatContext, 'q' | 'chuteX'>) => c.chuteX === null && Math.floor(c.q) % 2 === 1;
+
+/**
+ * [7] one wrong-way step with CORNER_DISTRACTIONS: back along straights and through
+ * corners alike, rolling every CHECKPOINT_SPACING_PX of fair distance, until the
+ * rat reaches the shared limit behind it (wrongWayLimit) and turns round.
+ */
+function fairWrongWayStep(context: RatContext, env: StepEnv): Partial<RatContext> {
+  const { track } = env;
+  const before = fairProgress(track, context.lane, context.q, context.chuteX);
+  const limit = wrongWayLimit(track, before);
+  let { cornerFair, straightInterval, cornerInterval, cornerSteps, cornerFairStep, counter } = context;
+  const corner = inCorner(context);
+  // checkpoint on the fair-distance cadence: gait counter on straights, cornerFair in corners
+  const due = corner ? cornerFair >= CHECKPOINT_SPACING_PX : counter === CHECKPOINT_GAIT_FRAME;
+  if (due) {
+    if (corner) cornerFair -= CHECKPOINT_SPACING_PX;
+    else counter = -1;
+    const pace = corner ? straightInterval : context.interval;
+    const c = checkpoint({ ...context, interval: pace }, env, false);
+    straightInterval = c.interval;
+    if (corner && c.interval !== pace) cornerInterval = cornerTiming(track, context.lane, Math.floor(context.q), c.interval).interval;
+    if (c.outcome) {
+      return {
+        counter: Math.max(0, counter),
+        cornerFair,
+        straightInterval,
+        cornerInterval,
+        interval: corner && c.outcome !== 'sniff' ? cornerInterval : straightInterval,
+        outcome: c.outcome,
+        sniff: c.sniff ?? context.sniff,
+        lastSniff: c.sniff?.variant ?? context.lastSniff,
+      };
+    }
+  }
+  if (before <= limit + 1e-6 || context.chuteX !== null) {
+    return { counter: Math.max(0, counter), interval: corner ? cornerInterval : straightInterval, straightInterval, outcome: 'turnAround' };
+  }
+  let q: number;
+  let interval: number;
+  const seg = Math.floor(context.q);
+  if (corner) {
+    cornerFair += cornerFairStep;
+    const k = Math.round((context.q - seg) * cornerSteps) - 1;
+    if (k < 0) {
+      // out of the corner, onto the end of the straight behind it
+      q = seg - 1e-9;
+      counter = counterFromFair(cornerFair);
+      interval = straightInterval;
+    } else {
+      q = seg + k / cornerSteps;
+      counter = k;
+      interval = cornerInterval;
+    }
+  } else {
+    counter++;
+    q = context.q - STRIDE_PX / (track.segmentLength(seg, context.lane) || 1);
+    interval = straightInterval;
+    if (Math.floor(q) < seg && seg > 0) {
+      // back into the corner behind: corner steps from its far end
+      const t = cornerTiming(track, context.lane, seg - 1, straightInterval);
+      ({ steps: cornerSteps, interval: cornerInterval, fairStep: cornerFairStep } = t);
+      cornerFair = (counter + 1) * STRIDE_PX;
+      q = seg - 1 + (cornerSteps - 1) / cornerSteps;
+      counter = cornerSteps - 2;
+      interval = cornerInterval;
+    }
+  }
+  if (fairProgress(track, context.lane, q) < limit) {
+    return { q: qAtProgress(track, context.lane, limit), counter: Math.max(0, counter), interval, straightInterval, cornerInterval, cornerSteps, cornerFairStep, cornerFair, outcome: 'turnAround' };
+  }
+  return { q, counter, interval, straightInterval, cornerInterval, cornerSteps, cornerFairStep, cornerFair };
 }
 
 function pickSniff(random: Random, last: number): Sniff {
@@ -291,6 +433,7 @@ export const ratMachine = setup({
     /** Distractions are over: a napping or sniffing rat gets straight up. */
     distractionsOff: ({ event }) => event.type === 'STEP' && !event.env.behavioursOn,
     released: ({ context }) => context.released,
+    inCorner: ({ context }) => inCorner(context),
   },
   actions: {
     resetFlags: assign({ outcome: null, done: false }),
@@ -359,19 +502,34 @@ export const ratMachine = setup({
         const steadySpeed = STRIDE_PX / context.interval; // px per ms
         let interval: number;
         let cornerSteps = CORNER_FRAMES;
+        let cornerFairStep = 0;
         if (FAIR_CORNERS) {
           // Inside lane's corner plus a quarter of this lane's gate head start, at the rat's own pace,
           // in stride-sized steps.
-          const stagger = env.track.gateNoseX(context.lane) - env.track.gateNoseX(0);
-          const fairPx = env.track.segmentLength(q, 0) + stagger / 4;
-          cornerSteps = Math.max(CORNER_FRAMES, Math.round(cornerPx / STRIDE_PX));
-          interval = fairPx / steadySpeed / cornerSteps;
+          const t = cornerTiming(env.track, context.lane, q, context.interval);
+          cornerSteps = t.steps;
+          interval = t.interval;
+          cornerFairStep = t.fairStep;
         } else {
           const originalSpeed = turnStepPx / rerollInterval(env.random, CORNER_STEP_DIE);
           const speed = steadySpeed + (originalSpeed - steadySpeed) * CORNER_SPEED_BLEND;
           interval = Math.round(turnStepPx / speed);
         }
-        return { counter, interval, straightInterval: context.interval, q, chuteX: null, outcome: 'corner' as const, checkpointCredit: context.checkpointCredit, cornerSteps, cornerGait: counter };
+        return {
+          counter,
+          interval,
+          straightInterval: context.interval,
+          q,
+          chuteX: null,
+          outcome: 'corner' as const,
+          checkpointCredit: context.checkpointCredit,
+          cornerSteps,
+          cornerGait: counter,
+          cornerInterval: interval,
+          cornerFairStep,
+          // checkpoint cadence carries on into the corner
+          cornerFair: (counter + 1) * STRIDE_PX,
+        };
       }
       // [8] RR_D2 0x1536: once there is a winner, a rat on the home straight heads for the pipe.
       if (env.winnerDecided && moved.chuteX === null && moved.q >= 8) {
@@ -380,12 +538,52 @@ export const ratMachine = setup({
       return { counter, interval: context.interval, ...moved, checkpointCredit: context.checkpointCredit };
     }),
 
-    enterCorner: assign({ counter: -1, outcome: null, done: false }),
+    /**
+     * Into a corner, or back into it after turning round or a distraction: steps count on
+     * from where the rat is. The wait before the next step is left as it is (a stride at the
+     * rat's pace after a distraction, as on a straight); each corner step then sets its own.
+     */
+    enterCorner: assign(({ context }) => ({
+      counter: Math.round((context.q - Math.floor(context.q)) * context.cornerSteps) - 1,
+      outcome: null,
+      done: false,
+    })),
 
     /** [5] across the corner: 12 turn frames (original) or stride-sized steps (FAIR_CORNERS). */
     cornerStep: assign(({ context, event }) => {
       const counter = context.counter + 1;
       const start = Math.floor(context.q);
+      if (CORNER_DISTRACTIONS && FAIR_CORNERS && event.type === 'STEP') {
+        const { env } = event;
+        let { cornerFair, straightInterval, cornerInterval } = context;
+        if (cornerFair >= CHECKPOINT_SPACING_PX && env.behavioursOn) {
+          cornerFair -= CHECKPOINT_SPACING_PX;
+          const c = checkpoint({ ...context, interval: straightInterval }, env, true);
+          if (c.interval !== straightInterval) {
+            straightInterval = c.interval;
+            cornerInterval = cornerTiming(env.track, context.lane, start, straightInterval).interval;
+          }
+          if (c.outcome) {
+            // distractions run at the rat's straight-line pace, so they last as long as anywhere else
+            return {
+              cornerFair,
+              straightInterval,
+              cornerInterval,
+              interval: c.outcome === 'turnAround' ? cornerInterval : straightInterval,
+              outcome: c.outcome,
+              sniff: c.sniff ?? context.sniff,
+              nap: c.nap ?? context.nap,
+              lastSniff: c.sniff?.variant ?? context.lastSniff,
+              lastNap: c.nap?.variant ?? context.lastNap,
+            };
+          }
+        } else if (cornerFair >= CHECKPOINT_SPACING_PX) cornerFair -= CHECKPOINT_SPACING_PX;
+        cornerFair += context.cornerFairStep;
+        if (counter >= context.cornerSteps - 1) {
+          return { q: start + 1, counter: counterFromFair(cornerFair), done: true, interval: straightInterval, straightInterval, cornerFair };
+        }
+        return { counter, q: start + (counter + 1) / context.cornerSteps - 1e-9, interval: cornerInterval, straightInterval, cornerInterval, cornerFair };
+      }
       // The last step lands on the end of the corner and hands straight back to running,
       // with the walk cycle carrying on where it is.
       if (counter >= context.cornerSteps - 1) {
@@ -406,6 +604,7 @@ export const ratMachine = setup({
       resumeCounter: context.counter,
       counter: TURN_AROUND_FIRST_FRAME - 1,
       interval: TURN_AROUND_STEP_MS,
+      straightInterval: TURN_AROUND_STEP_MS,
       outcome: null,
       done: false,
       sniff: null,
@@ -415,6 +614,14 @@ export const ratMachine = setup({
     /** [6] one turn-around frame; when finished, a rat going the wrong way starts with a sniff. */
     turnAroundStep: assign(({ context, event }) => {
       if (context.counter < TURN_AROUND_LAST_FRAME) return { counter: context.counter + 1 };
+      if (FAIR_CORNERS && inCorner(context) && event.type === 'STEP') {
+        // carry on through the corner (either way) at the turn-around pace
+        const t = cornerTiming(event.env.track, context.lane, Math.floor(context.q), context.straightInterval);
+        context = { ...context, cornerInterval: t.interval, cornerFairStep: t.fairStep, cornerSteps: t.steps, cornerFair: STRIDE_PX };
+        if (context.reversed) return { done: true, cornerInterval: t.interval, cornerFairStep: t.fairStep, cornerSteps: t.steps, cornerFair: STRIDE_PX };
+        const sniff = pickSniff(event.env.random, context.lastSniff);
+        return { done: true, sniff, lastSniff: sniff.variant, cornerInterval: t.interval, cornerFairStep: t.fairStep, cornerSteps: t.steps, cornerFair: STRIDE_PX };
+      }
       if (context.reversed || event.type !== 'STEP') return { done: true };
       const sniff = pickSniff(event.env.random, context.lastSniff);
       return { done: true, sniff, lastSniff: sniff.variant };
@@ -430,6 +637,38 @@ export const ratMachine = setup({
       let counter = context.counter;
       // Distractions over: turn round at once rather than at the next checkpoint.
       if (!env.behavioursOn) return { counter, outcome: 'turnAround' as const };
+      if (FAIR_CORNERS && CORNER_DISTRACTIONS) return fairWrongWayStep(context, env);
+      if (FAIR_CORNERS && inCorner(context)) {
+        // Back through a corner, a corner step at a time, rolling on the same fair-distance cadence.
+        const seg = Math.floor(context.q);
+        let { cornerFair, straightInterval, cornerInterval } = context;
+        if (cornerFair >= CHECKPOINT_SPACING_PX) {
+          cornerFair -= CHECKPOINT_SPACING_PX;
+          const c = checkpoint({ ...context, interval: straightInterval }, env, false);
+          if (c.interval !== straightInterval) {
+            straightInterval = c.interval;
+            cornerInterval = cornerTiming(env.track, context.lane, seg, straightInterval).interval;
+          }
+          if (c.outcome) {
+            return {
+              cornerFair,
+              straightInterval,
+              cornerInterval,
+              interval: c.outcome === 'sniff' ? straightInterval : cornerInterval,
+              outcome: c.outcome,
+              sniff: c.sniff ?? context.sniff,
+              lastSniff: c.sniff?.variant ?? context.lastSniff,
+            };
+          }
+        }
+        cornerFair += context.cornerFairStep;
+        const k = Math.round((context.q - seg) * context.cornerSteps) - 1;
+        if (k < 0) {
+          // out of the corner, onto the end of the straight behind it
+          return { q: seg - 1e-9, counter: counterFromFair(cornerFair), interval: straightInterval, straightInterval, cornerFair };
+        }
+        return { q: seg + k / context.cornerSteps, counter: k, interval: cornerInterval, straightInterval, cornerInterval, cornerFair };
+      }
       if (counter === CHECKPOINT_GAIT_FRAME) {
         counter = 0;
         const c = checkpoint(context, env, false);
@@ -503,6 +742,9 @@ export const ratMachine = setup({
     checkpointCredit: 0,
     cornerSteps: CORNER_FRAMES,
     cornerGait: 0,
+    cornerInterval: ENTER_STEP_MS,
+    cornerFairStep: 0,
+    cornerFair: 0,
     lastSniff: 0,
     lastNap: 0,
     inPipe: false,
@@ -564,17 +806,38 @@ export const ratMachine = setup({
         },
       },
     },
-    /** [5] turning a corner */
+    /** [5] turning a corner; with CORNER_DISTRACTIONS a rat can sniff or nap in it too */
     corner: {
-      entry: 'enterCorner',
-      on: { STEP: { actions: 'cornerStep' } },
-      always: { guard: 'done', target: 'run' },
+      initial: 'moving',
+      states: {
+        moving: {
+          entry: 'enterCorner',
+          on: { STEP: { actions: 'cornerStep' } },
+          always: [
+            { guard: 'done', target: '#rat.run' },
+            { guard: 'outcomeTurnAround', target: '#rat.turnAround' },
+            { guard: 'outcomeNap', target: 'napping' },
+            { guard: 'outcomeSniff', target: 'sniffing' },
+          ],
+        },
+        sniffing: {
+          entry: 'resetFlags',
+          on: { STEP: [{ guard: 'distractionsOff', target: 'moving', actions: 'clearDistraction' }, { actions: 'sniffStep' }] },
+          always: { guard: 'done', target: 'moving' },
+        },
+        napping: {
+          entry: 'resetFlags',
+          on: { STEP: [{ guard: 'distractionsOff', target: 'moving', actions: 'clearDistraction' }, { actions: 'napStep' }] },
+          always: { guard: 'done', target: 'moving' },
+        },
+      },
     },
     /** [6] turning round */
     turnAround: {
       entry: 'enterTurnAround',
       on: { STEP: { actions: 'turnAroundStep' } },
       always: [
+        { guard: and(['done', 'reversed', 'inCorner']), target: 'corner', actions: 'resumeForward' },
         { guard: and(['done', 'reversed']), target: 'run', actions: 'resumeForward' },
         { guard: 'done', target: 'wrongWay', actions: 'goReversed' },
       ],
