@@ -34,7 +34,7 @@ export const TRAINING_TABLE: readonly TrainingRow[] = [
    * Not in the original: the top of the slider. Rare, short distractions, and a
    * rat that does turn round corrects itself fairly quickly (15% per checkpoint).
    */
-  { min: 100, label: 'Cracked', turnAround: 3, nap: 10, sniff: 50, turnBack: 150, original: false },
+  { min: 100, label: 'Cracked', turnAround: 10, nap: 30, sniff: 80, turnBack: 150, original: false },
 ];
 
 /** Labels and slider stops: sUnt 1000's five, plus Cracked at 100. */

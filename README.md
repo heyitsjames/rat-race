@@ -38,7 +38,7 @@ While racing, the control bar and cursor hide after 3 seconds without input; mov
 | T | Race Track on/off |
 | Esc | Close About, otherwise back to the menu |
 
-Settings (saved in this browser): **Training** (Drop Out … Professional, plus an added **Cracked** level at the top), **Race Track**, **Music** (Never / Once / Twice / Always), sound and volume. Browsers only allow audio after a click or key press; pressing Run Race counts, so music starts with the first race.
+Settings (saved in this browser): **Training** (Drop Out … Professional, plus an added **Cracked** level at the top), **Race Track**, **Competitive**, **Rats**, sound and volume. Run Race runs one race, with music; 10 seconds after it ends the menu comes back. Browsers only allow audio after a click or key press; pressing Run Race counts.
 
 ## Debug tools
 
@@ -46,7 +46,7 @@ Add query parameters to the URL:
 
 | Parameter | Effect |
 |---|---|
-| `?debug=1` | Diagnostics panel: seed, phase, per-rat mode/position, session clock, audio nodes, recolour cache. Buttons for +30 min, speed ×1/×4/×16, the frame inspector and skipping to the next race. |
+| `?debug=1` | Diagnostics panel: seed, phase, per-rat mode/position, session clock, audio nodes, recolour cache. Buttons for +30 min, speed ×1/×4/×16, the frame inspector and ending the current race. |
 | `?seed=1234` | Fixed seed for reproducible races (outcomes also depend on window size, which sets the track shape). |
 | `?speed=16` | Simulation speed multiplier. |
 | `?session=90` | Start the 90-minute clock at N minutes (90 hides the track immediately). |

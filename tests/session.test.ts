@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { musicForRace } from '../src/settings';
 import {
   clampFrameDelta,
   FixedStepper,
@@ -48,15 +47,5 @@ describe('frame timing', () => {
   it('does not catch up after a long pause', () => {
     const s = new FixedStepper();
     expect(s.advance(3600)).toBe(Math.floor(MAX_FRAME_SECONDS / STEP_SECONDS));
-  });
-});
-
-describe('music choice', () => {
-  it('maps Never/Once/Twice/Always to races in the session', () => {
-    const plays = (c: Parameters<typeof musicForRace>[0]) => [0, 1, 2, 3].map((i) => musicForRace(c, i));
-    expect(plays('never')).toEqual([false, false, false, false]);
-    expect(plays('once')).toEqual([true, false, false, false]);
-    expect(plays('twice')).toEqual([true, true, false, false]);
-    expect(plays('always')).toEqual([true, true, true, true]);
   });
 });

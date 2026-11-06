@@ -313,7 +313,10 @@ export class SceneRenderer {
       if (photoRace && k < rows) return;
       const { px, wellY } = slot(k);
       const lines = this.font.wrap(p.name, b.panel.w - 2 * BOARD_PANEL_PADDING);
-      const label = PLACE_LABELS[places[k] ?? -1];
+      // WIN / PLACE / SHOW for the top three; every later finisher gets the photo
+      // finish's own "F I N I S H" (remake addition: the original board had three rows).
+      const place = places[k] ?? -1;
+      const label = place < 0 ? undefined : (PLACE_LABELS[place] ?? FINISH);
       if (label) lines.push(label);
       const centre = wellY + head.h / 2;
       const top = centre - (lines.length * BOARD_LINE_HEIGHT) / 2;

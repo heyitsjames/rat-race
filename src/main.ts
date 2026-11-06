@@ -6,7 +6,7 @@ import { computeViewport, SceneRenderer, type Viewport } from './render/scene';
 import { loadAssets } from './render/sprites';
 import helpText from '../public/assets/rat-race/module-help.txt?raw';
 import { MacSlider, VOLUME_STEPS, volumeIcon, volumeStep } from './menu';
-import { MUSIC_CHOICES, loadSettings, musicChoice, musicForRace, musicLabel, saveSettings, type Settings } from './settings';
+import { loadSettings, saveSettings, type Settings } from './settings';
 import { RaceSeries, type RaceEvent } from './simulation/race';
 import { FixedStepper, SessionClock, STEP_SECONDS } from './simulation/session';
 import { MAX_LANES, MIN_LANES, Track } from './simulation/track';
@@ -15,6 +15,8 @@ import { TRAINING_LEVELS, trainingLabel } from './simulation/training';
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
 const IDLE_MS = 3000;
+/** How long the finished race stays on screen before the menu comes back. */
+const BACK_TO_MENU_SECONDS = 10;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -55,7 +57,7 @@ async function main(): Promise<void> {
     lanes = settings.rats;
     vp = computeViewport(innerWidth, innerHeight, devicePixelRatio || 1, lanes);
     return new RaceSeries(newSeed(), labels['2000'], () => settings.training, new Track(vp.width, vp.height, lanes), {
-      musicForRace: (i) => musicForRace(musicChoice(settings.musicLevel), i),
+      once: true,
       trackVisible: () => session.trackVisible(settings.raceTrack),
       introPlaying: () => audio.currentMusic === 'intro',
       competitive: () => settings.competitive,
@@ -68,6 +70,8 @@ async function main(): Promise<void> {
   // The start menu shows first; ?run=1 skips straight to racing.
   let running = params.has('run');
   let lastShowTrack = true;
+  /** Seconds since the race ended (race time, so pause and speed apply). */
+  let doneSeconds = 0;
 
   // ---------- sizing ----------
   const resize = () => {
@@ -112,7 +116,6 @@ async function main(): Promise<void> {
   const btnSound = $<HTMLButtonElement>('btn-sound');
   const volume = $<HTMLInputElement>('volume');
   const trainingOut = $<HTMLOutputElement>('training-label');
-  const musicOut = $<HTMLOutputElement>('music-label');
   const raceTrack = $<HTMLInputElement>('race-track');
   const competitive = $<HTMLInputElement>('competitive');
   const menuLayer = $('menu-layer');
@@ -135,10 +138,6 @@ async function main(): Promise<void> {
     if (!running) series = makeSeries();
   }, String);
   const ratsOut = $<HTMLOutputElement>('rats-label');
-  const music = new MacSlider($('music'), MUSIC_CHOICES.map((m) => m.min), (v) => {
-    settings.musicLevel = v;
-    commit();
-  }, musicLabel);
 
   const syncUi = () => {
     btnPause.textContent = paused ? 'Resume' : 'Pause';
@@ -149,8 +148,6 @@ async function main(): Promise<void> {
     trainingOut.textContent = trainingLabel(settings.training);
     ratCount.set(settings.rats);
     ratsOut.textContent = String(settings.rats);
-    music.set(settings.musicLevel);
-    musicOut.textContent = musicLabel(settings.musicLevel);
     raceTrack.checked = settings.raceTrack;
     competitive.checked = settings.competitive;
     const step = volumeStep(settings.sound, settings.volume);
@@ -173,6 +170,7 @@ async function main(): Promise<void> {
   };
   /** Fresh races and a fresh 90-minute clock. */
   const restart = () => {
+    doneSeconds = 0;
     audio.stopAll();
     series = makeSeries();
     session.reset();
@@ -187,6 +185,7 @@ async function main(): Promise<void> {
   };
   const showMenu = () => {
     running = false;
+    doneSeconds = 0;
     audio.stopAll();
     setPaused(false);
     series = makeSeries();
@@ -352,7 +351,7 @@ async function main(): Promise<void> {
       `seed ${series.seed}  race #${series.raceIndex + 1}  race seed ${r.seed}`,
       `phase ${r.phase} ${r.phaseTime.toFixed(1)}s  race ${r.raceTime.toFixed(1)}s  speed x${speed}  ${fps.toFixed(0)} fps`,
       `session ${(session.elapsed / 60).toFixed(1)} min  track ${session.trackVisible(settings.raceTrack) ? 'shown' : 'hidden'}`,
-      `training ${settings.training} (${trainingLabel(settings.training)})  music ${settings.musicLevel} (${musicLabel(settings.musicLevel)})${r.competitive ? '  competitive' : ''}`,
+      `training ${settings.training} (${trainingLabel(settings.training)})${r.competitive ? '  competitive' : ''}`,
       `audio ${audio.status} nodes ${audio.activeNodes} music ${audio.currentMusic ?? '-'}`,
       `recolour cache ${scene.recolor.size}  view ${vp.width.toFixed(0)}x${vp.height.toFixed(0)} @${vp.scale.toFixed(2)}`,
       ...r.rats.map((x) => `L${x.lane + 1} ${x.mode.padEnd(11)} q${x.q.toFixed(2).padStart(6)} v${x.v.toFixed(2)} ${x.finished ? 'P' + (r.finishOrder.indexOf(x) + 1) : '  '} ${x.name}`),
@@ -363,7 +362,7 @@ async function main(): Promise<void> {
       ['session', '+30 min'],
       ['speed', 'speed'],
       ['inspect', 'inspector (I)'],
-      ['next', 'next race'],
+      ['next', 'end race'],
     ]) {
       const b = document.createElement('button');
       b.dataset.action = action;
@@ -388,7 +387,10 @@ async function main(): Promise<void> {
         for (let i = 0; i < steps; i++) {
           for (const e of series.step(STEP_SECONDS)) handle(e);
           session.add(STEP_SECONDS);
+          // One race per run: once it's over, the board stays up for a while, then the menu returns.
+          if (series.done) doneSeconds += STEP_SECONDS;
         }
+        if (doneSeconds >= BACK_TO_MENU_SECONDS) showMenu();
       }
       const showTrack = session.trackVisible(settings.raceTrack);
       if (showTrack !== lastShowTrack) {

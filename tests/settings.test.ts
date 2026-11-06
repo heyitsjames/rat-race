@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_MUSIC_LEVEL, DEFAULT_SETTINGS, loadSettings, musicChoice, musicLabel } from '../src/settings';
+import { DEFAULT_SETTINGS, loadSettings } from '../src/settings';
 import { volumeStep } from '../src/menu';
 
-describe('Music slider (sUnt 1002)', () => {
-  it('picks the last stop at or below the slider value', () => {
-    expect([0, 24, 25, 49, 50, 74, 75, 100].map(musicChoice)).toEqual(['never', 'never', 'once', 'once', 'twice', 'twice', 'always', 'always']);
-  });
-  it('defaults to the saved sVal 1002 position, Once', () => {
-    expect(musicLabel(DEFAULT_MUSIC_LEVEL)).toBe('Once');
+describe('Music setting', () => {
+  it('is gone: every run is one race with music, and old saves drop it', () => {
+    const store = { getItem: () => JSON.stringify({ music: 'twice', musicLevel: 50 }) };
+    const prev = globalThis.localStorage;
+    Object.defineProperty(globalThis, 'localStorage', { value: store, configurable: true });
+    try {
+      const s = loadSettings() as unknown as Record<string, unknown>;
+      expect('music' in s || 'musicLevel' in s).toBe(false);
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', { value: prev, configurable: true });
+    }
   });
 });
 
@@ -26,7 +31,6 @@ describe('slider stops', () => {
     const training = [0, 20, 40, 60, 80, 100];
     expect(stopIndex(training, 70)).toBe(3); // saved default: Collegiate
     expect(stopIndex(training, 100)).toBe(5);
-    expect(stopIndex([0, 25, 50, 75], 30)).toBe(1); // Once
   });
 });
 

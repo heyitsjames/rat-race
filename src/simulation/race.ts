@@ -300,8 +300,10 @@ export class Race {
 }
 
 export interface SeriesOptions {
-  /** Whether race n of the session plays music (Music setting). */
-  musicForRace?: (raceIndex: number) => boolean;
+  /** Whether races play music (default true). */
+  withMusic?: boolean;
+  /** Run one race and stop at 'done' instead of starting the next (default false). */
+  once?: boolean;
   trackVisible?: () => boolean;
   introPlaying?: () => boolean;
   /** Competitive mode for the next race (read as each race is set up). */
@@ -345,19 +347,25 @@ export class RaceSeries {
       training: this.getTraining(),
       names: this.names,
       track: this.trackRef,
-      withMusic: this.options.musicForRace?.(this.raceIndex) ?? false,
+      withMusic: this.options.withMusic ?? true,
       trackVisible: this.options.trackVisible,
       introPlaying: this.options.introPlaying,
       competitive: this.options.competitive?.() ?? false,
     });
   }
 
+  /** The current race is over (with \`once\`, the series stops there). */
+  get done(): boolean {
+    return this.race.phase === 'done';
+  }
+
   /** Advance one fixed step; returns events, including those of a finished race. */
   step(dt: number): RaceEvent[] {
+    if (this.done) return [];
     this.race.training = this.getTraining();
     this.race.step(dt);
     const events = this.race.drainEvents();
-    if (this.race.phase === 'done') {
+    if (this.done && !this.options.once) {
       this.raceIndex++;
       this.race = this.makeRace();
       events.push(...this.race.drainEvents());

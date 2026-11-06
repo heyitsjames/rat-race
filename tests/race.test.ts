@@ -445,6 +445,17 @@ describe('race series', () => {
     expect(rows.length).toBeGreaterThanOrEqual(25);
   });
 
+  it('with once, stops at the end of its race instead of starting another', () => {
+    const series = new RaceSeries(9, NAMES, () => 40, track, { once: true });
+    const first = series.race;
+    for (let i = 0; i < 600 / STEP_SECONDS && !series.done; i++) series.step(STEP_SECONDS);
+    expect(series.done).toBe(true);
+    expect(series.race).toBe(first);
+    expect(series.step(STEP_SECONDS)).toEqual([]);
+    expect(series.race).toBe(first);
+    expect(series.raceIndex).toBe(0);
+  });
+
   it('gives each race distinct names and silks', () => {
     const r = new RaceSeries(7, NAMES, () => 70, track).race;
     expect(new Set(r.rats.map((x) => x.name)).size).toBe(3);
