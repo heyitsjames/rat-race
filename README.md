@@ -75,7 +75,7 @@ Pushing to master deploys to Cloudflare Pages (project `rat-race`). Its build co
 
 The page opens on a start menu modelled on the After Dark 3.0 control panel: the AD 3.0 faceplate, the module's own **Training** slider (with the control panel's flying-toaster slider thumbs), a speaker button that steps through the volume icons, and **?** for the module's help text. **Run Race** (or Enter) starts a fresh session; **Menu** in the control bar (or Esc) stops it and returns to the menu. Add `?run=1` to skip the menu.
 
-While racing, the control bar and cursor hide after 1.5 seconds without input; move the mouse or press a key to bring them back.
+While racing, the control bar and cursor hide after 1.5 seconds without input; move the mouse or tap the screen to bring them back. Keyboard shortcuts work without showing them.
 
 | Key | Action |
 |---|---|

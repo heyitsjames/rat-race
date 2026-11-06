@@ -276,10 +276,11 @@ async function main(): Promise<void> {
   for (const type of ['pointerdown', 'pointerup', 'click', 'touchend', 'keydown', 'keyup']) {
     addEventListener(type, () => audio.unlock(), { capture: true, passive: true });
   }
+  // Only moving the mouse or tapping the screen brings the control bar back; key
+  // presses (Space, M, F, ...) act without showing it.
   addEventListener('pointerdown', wake);
   addEventListener('pointermove', wake);
   addEventListener('keydown', (e) => {
-    wake();
     if (inspector.key(e)) {
       e.preventDefault();
       return;
