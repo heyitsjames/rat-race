@@ -86,6 +86,15 @@ Add query parameters to the URL:
 | `?corners=1` | Corner lab: one rat per lane loops round the bottom-right corner. Keys 1-7 switch between corner animation styles (1 is what races use), Space pauses, `[` `]` change the speed. |
 | `?inspect=1` | Open the frame inspector (also `I` with `?debug=1`): step through every animation state, with anchor, bounding box, RLEP ID/frame, mirroring and recolouring. |
 
+## Stats (optional)
+
+A plain checkout sends nothing. The live site uses two optional extras, both set up in Cloudflare rather than in this code:
+
+- **Cloudflare Web Analytics** (visitors, countries, devices), switched on in the Cloudflare Pages project.
+- **Race stats**: anonymous game events (who won, naps, photo finishes, lanes, settings, frame rate, script errors). No cookies, and nothing identifies a visitor. They're on only when the build sets `VITE_RACE_STATS=1`. The game posts them to `functions/api/event.ts`, which stores them in a Cloudflare D1 database bound as `DB` (schema in `migrations/`). Without that binding the endpoint accepts and drops them. They're also off in dev, on localhost, and with `?debug`, `?seed`, `?speed`, `?corners` or `?inspect`.
+
+`npm run stats` lists the reports (hall of fame, photo finishes, naps, lane fairness, devices, errors and more), and `npm run stats -- all` runs them all. It needs `wrangler login` to the account that owns the database.
+
 ## Project layout
 
 ```
@@ -102,6 +111,8 @@ src/simulation/           pure, DOM-free simulation (tested)
   random.ts               seeded PRNG
 src/render/               Canvas 2D rendering, recolouring, Ratvetica font
 src/audio.ts              Web Audio: effects and music
+src/analytics.ts          optional race stats (off unless VITE_RACE_STATS=1)
+functions/api/event.ts    Cloudflare Pages Function that stores race stats
 src/debug.ts              frame / anchor inspector
 data/                     animations, scene layout, palette mapping, font metrics
 public/assets/rat-race/   (git-ignored) extracted artwork, sounds and rendered music

@@ -14,7 +14,8 @@
     "assets:fetch": "node tools/assets.mjs fetch",
     "predev": "node tools/assets.mjs check",
     "prebuild": "node tools/assets.mjs check",
-    "pretest": "node tools/assets.mjs check"
+    "pretest": "node tools/assets.mjs check",
+    "stats": "node tools/stats.mjs"
   },
   "devDependencies": {
     "aws4fetch": "^1.0.20",

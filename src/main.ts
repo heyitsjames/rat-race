@@ -1,5 +1,6 @@
 import labels from '../public/assets/rat-race/rat-names-and-labels.json';
 import expandedNames from '../data/expanded-names.json';
+import { analytics } from './analytics';
 import { AudioEngine } from './audio';
 import { CornerLab } from './corner-lab';
 import { Inspector } from './debug';
@@ -9,6 +10,7 @@ import helpText from '../public/assets/rat-race/module-help.txt?raw';
 import { MacSlider, VOLUME_STEPS, volumeIcon, volumeStep } from './menu';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { RaceSeries, type RaceEvent } from './simulation/race';
+import { RaceStats } from './simulation/race-stats';
 import { FixedStepper, STEP_SECONDS } from './simulation/session';
 import { lanesFor, MAX_LANES, MIN_LANES, Track } from './simulation/track';
 import { TRAINING_LEVELS, trainingLabel } from './simulation/training';
@@ -72,6 +74,81 @@ async function main(): Promise<void> {
   let paused = false;
   // The start menu shows first; ?run=1 skips straight to racing.
   let running = params.has('run');
+
+  // ---------- anonymous race stats (see analytics.ts) ----------
+  const pageStart = performance.now();
+  let stats: RaceStats | null = null;
+  let statsSent = false;
+  let racesFinished = 0;
+  let restarts = 0;
+  let lastInput = performance.now();
+  let longestUnattended = 0;
+  let fullscreenSince = 0;
+  let fullscreenMs = 0;
+  // Frame timing while a race runs: count, sum and frames slower than 50 ms.
+  let perf = { frames: 0, ms: 0, slow: 0 };
+  const settingsProps = () => ({
+    training: settings.training,
+    trainingLabel: trainingLabel(settings.training),
+    competitive: settings.competitive,
+    expandedNames: settings.expandedNames,
+    rats: settings.rats,
+    sound: settings.sound,
+    volume: Math.round(settings.volume * 100) / 100,
+  });
+  /** A race started (from the menu, ?run=1 or a restart): watch it and note who's racing. */
+  const beginStats = (kind: 'new' | 'restart' | 'autorun') => {
+    const r = series.race;
+    stats = new RaceStats(r);
+    statsSent = false;
+    perf = { frames: 0, ms: 0, slow: 0 };
+    analytics.track('race_start', {
+      kind,
+      seed: series.seed,
+      raceSeed: r.seed,
+      ...settingsProps(),
+      w: innerWidth,
+      h: innerHeight,
+      lineup: r.rats.map((x) => x.name),
+    });
+  };
+  /** The current race is being left: send its result, or note where it was abandoned. */
+  const endStats = (leftWith: 'restart' | 'menu' | 'leave' | null) => {
+    if (!stats || statsSent) return;
+    statsSent = true;
+    const r = series.race;
+    if (r.phase !== 'done') {
+      analytics.track('race_abandoned', { raceSeed: r.seed, phase: r.phase, raceTime: Math.round(r.raceTime * 10) / 10, leftWith });
+      return;
+    }
+    racesFinished++;
+    analytics.track('race_end', {
+      ...stats.summary(),
+      seed: series.seed,
+      sound: settings.sound,
+      audio: audio.status,
+      fullscreen: !!document.fullscreenElement,
+      fps: perf.ms > 0 ? Math.round((perf.frames * 1000) / perf.ms) : null,
+      slowFrames: perf.slow,
+      frames: perf.frames,
+    });
+  };
+  /** What people do once a race is over: Restart, New Race, or Esc/Menu. */
+  const afterRace = (choice: string) => {
+    if (series.done) analytics.track('race_end_choice', { choice });
+  };
+  addEventListener('pagehide', () => {
+    if (running) endStats('leave');
+    if (fullscreenSince) fullscreenMs += performance.now() - fullscreenSince;
+    analytics.track('session_end', {
+      seconds: Math.round((performance.now() - pageStart) / 1000),
+      racesFinished,
+      restarts,
+      longestUnattendedSec: Math.round(longestUnattended / 1000),
+      fullscreenSec: Math.round(fullscreenMs / 1000),
+    });
+    analytics.flush(true);
+  });
 
   // ---------- sizing ----------
   /**
@@ -181,9 +258,13 @@ async function main(): Promise<void> {
   };
   /** The same rats race again with fresh luck, so the result can change. */
   const restart = () => {
+    afterRace('restart');
+    endStats('restart');
+    restarts++;
     scene.showTimes = false;
     audio.stopAll();
     series.rerun();
+    beginStats('restart');
     stepper.reset();
     setPaused(false);
   };
@@ -193,11 +274,17 @@ async function main(): Promise<void> {
     scene.showTimes = false;
     audio.stopAll();
     series = makeSeries();
+    beginStats('new');
     stepper.reset();
     setPaused(false);
     wake();
   };
-  const showMenu = () => {
+  const showMenu = (choice = 'menu') => {
+    if (running) {
+      afterRace(choice);
+      endStats('menu');
+    }
+    stats = null;
     running = false;
     scene.showTimes = false;
     audio.stopAll();
@@ -212,20 +299,31 @@ async function main(): Promise<void> {
   };
   const toggleSound = () => {
     settings.sound = !settings.sound;
+    analytics.track('sound_toggle', { on: settings.sound, running });
     audio.setEnabled(settings.sound);
     commit();
   };
   const toggleAbout = (open?: boolean) => {
     aboutPanel.hidden = !(open ?? aboutPanel.hidden);
+    if (!aboutPanel.hidden) analytics.track('about_open');
     $('btn-about').setAttribute('aria-expanded', String(!aboutPanel.hidden));
   };
 
   btnPause.onclick = () => setPaused(!paused);
+  document.addEventListener('fullscreenchange', () => {
+    const on = !!document.fullscreenElement;
+    if (on) fullscreenSince = performance.now();
+    else if (fullscreenSince) {
+      fullscreenMs += performance.now() - fullscreenSince;
+      fullscreenSince = 0;
+    }
+    analytics.track('fullscreen', { on, running });
+  });
   $('btn-restart').onclick = restart;
   // Shown under the results board once the race is over.
   const raceEnd = $('race-end');
   $('end-restart').onclick = restart;
-  $('end-new-race').onclick = showMenu;
+  $('end-new-race').onclick = () => showMenu('new-race');
   // Once the race is over, clicking or tapping the results board switches between
   // WIN / PLACE / SHOW and each rat's place and time.
   const onBoard = (e: MouseEvent) => {
@@ -237,7 +335,10 @@ async function main(): Promise<void> {
     return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
   };
   canvas.addEventListener('click', (e) => {
-    if (onBoard(e)) scene.showTimes = !scene.showTimes;
+    if (onBoard(e)) {
+      scene.showTimes = !scene.showTimes;
+      analytics.track('board_toggle', { showTimes: scene.showTimes });
+    }
   });
   canvas.addEventListener('pointermove', (e) => document.body.classList.toggle('board-clickable', onBoard(e)));
   const placeRaceEnd = () => {
@@ -251,7 +352,7 @@ async function main(): Promise<void> {
   };
   btnSound.onclick = toggleSound;
   $('btn-fullscreen').onclick = toggleFullscreen;
-  $('btn-menu').onclick = showMenu;
+  $('btn-menu').onclick = () => showMenu();
   $('btn-about').onclick = () => toggleAbout();
   runRace.onclick = startRacing;
   volume.oninput = () => {
@@ -281,6 +382,7 @@ async function main(): Promise<void> {
   };
   menuHelpBtn.onclick = () => {
     menuHelp.hidden = !menuHelp.hidden;
+    if (!menuHelp.hidden) analytics.track('help_open');
     menuHelpBtn.setAttribute('aria-expanded', String(!menuHelp.hidden));
     $('module-controls').setAttribute('aria-hidden', String(!menuHelp.hidden));
     $('module-controls').inert = !menuHelp.hidden;
@@ -290,6 +392,7 @@ async function main(): Promise<void> {
   // ---------- idle hiding & audio unlock ----------
   let idleTimer = 0;
   const wake = () => {
+    lastInput = performance.now();
     document.body.classList.remove('idle');
     clearTimeout(idleTimer);
     idleTimer = window.setTimeout(() => {
@@ -308,6 +411,7 @@ async function main(): Promise<void> {
   // presses (Space, M, F, ...) act without showing it.
   addEventListener('pointerdown', wake);
   addEventListener('pointermove', wake);
+  addEventListener('keydown', () => (lastInput = performance.now()), { capture: true, passive: true });
   addEventListener('keydown', (e) => {
     if (inspector.key(e)) {
       e.preventDefault();
@@ -352,7 +456,7 @@ async function main(): Promise<void> {
         break;
       case 'Escape':
         if (!aboutPanel.hidden) toggleAbout(false);
-        else showMenu();
+        else showMenu('escape');
         break;
     }
   });
@@ -422,7 +526,16 @@ async function main(): Promise<void> {
         const steps = stepper.advance(real, speed);
         for (let i = 0; i < steps; i++) {
           for (const e of series.step(STEP_SECONDS)) handle(e);
+          stats?.observe();
         }
+        if (stats && !statsSent && series.done) endStats(null);
+        if (!document.hidden && real > 0 && real < 1) {
+          perf.frames++;
+          perf.ms += real * 1000;
+          if (real > 0.05) perf.slow++;
+        }
+        // Left running as a screensaver: the longest stretch with no mouse, touch or key.
+        longestUnattended = Math.max(longestUnattended, now - lastInput);
       }
       scene.render(series.race, vp);
     }
@@ -437,6 +550,23 @@ async function main(): Promise<void> {
     }
     requestAnimationFrame(frame);
   };
+  analytics.track('session_start', {
+    ...settingsProps(),
+    w: innerWidth,
+    h: innerHeight,
+    dpr: devicePixelRatio || 1,
+    touch: matchMedia('(pointer: coarse)').matches,
+    lang: navigator.language,
+    referrer: (() => {
+      try {
+        return document.referrer ? new URL(document.referrer).hostname : null;
+      } catch {
+        return null;
+      }
+    })(),
+    autorun: running,
+  });
+  if (running) beginStats('autorun');
   requestAnimationFrame(frame);
 }
 
