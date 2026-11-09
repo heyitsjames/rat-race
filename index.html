@@ -51,9 +51,12 @@
     </script>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
-  <body>
+  <body class="loading">
     <canvas id="scene" aria-label="Rat Race screensaver: rats racing on a track"></canvas>
-    <div id="loading">Rat Race: Saddling up the rats…</div>
+    <div id="loading" role="status">
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="loading-text">Saddling up the rats…</p>
+    </div>
 
     <!-- Describes the canvas game for screen readers and search engines; not shown on screen. -->
     <section class="visually-hidden" aria-labelledby="intro-title">

@@ -33,16 +33,28 @@ async function main(): Promise<void> {
   try {
     assets = await loadAssets();
   } catch (err) {
-    loading.textContent = `Rat Race module has a problem. ${(err as Error).message}`;
+    $('loading-text').textContent = `Rat Race module has a problem. ${(err as Error).message}`;
     loading.classList.add('error');
     return;
   }
-  loading.remove();
+  // Wait for the start menu's own images too, so it appears complete.
+  await Promise.all([...document.querySelectorAll<HTMLImageElement>('#menu img')].map((img) => img.decode().catch(() => undefined)));
+  /** Show the page once the first frame (track, grass and a sized menu) has been drawn. */
+  const reveal = () =>
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document.body.classList.remove('loading');
+        loading.classList.add('done');
+        loading.addEventListener('transitionend', () => loading.remove(), { once: true });
+        setTimeout(() => loading.remove(), 1000);
+      }),
+    );
 
   const settings: Settings = loadSettings();
   const scene = new SceneRenderer(ctx, assets);
   if (params.has('corners')) {
     runCornerLab(canvas, scene);
+    reveal();
     return;
   }
   const audio = new AudioEngine();
@@ -568,6 +580,7 @@ async function main(): Promise<void> {
   });
   if (running) beginStats('autorun');
   requestAnimationFrame(frame);
+  reveal();
 }
 
 /** ?corners=1: compare corner animation styles (see corner-lab.ts). */
