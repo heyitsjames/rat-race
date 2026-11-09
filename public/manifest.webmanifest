@@ -1,0 +1,15 @@
+{
+  "name": "Rat Race: the After Dark screensaver",
+  "short_name": "Rat Race",
+  "description": "Rat Race, the 1994 After Dark 3.0 screensaver from Berkeley Systems, in your browser.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1e4c05",
+  "theme_color": "#1e4c05",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

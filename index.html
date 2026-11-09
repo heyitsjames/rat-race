@@ -3,23 +3,74 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>After Dark Files: Rat Race</title>
-    <meta name="description" content="A browser remake of the 1994 After Dark screensaver Rat Race. Place your bets and watch the rats race." />
+    <title>Rat Race: the After Dark screensaver, playable in your browser</title>
+    <meta name="description" content="Play Rat Race, the 1994 After Dark 3.0 screensaver from Berkeley Systems, in your browser, with its original art, sounds and William Tell music. Set the rats' training and watch them race, nap and get distracted." />
+    <link rel="canonical" href="https://rat-race.heyitsjam.es/" />
+    <meta name="theme-color" content="#1e4c05" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Rat Race" />
     <meta property="og:url" content="https://rat-race.heyitsjam.es/" />
-    <meta property="og:title" content="After Dark Files: Rat Race" />
-    <meta property="og:description" content="A browser remake of the 1994 After Dark screensaver Rat Race. Place your bets and watch the rats race." />
+    <meta property="og:title" content="Rat Race: the After Dark screensaver, playable in your browser" />
+    <meta property="og:description" content="Play Rat Race, the 1994 After Dark 3.0 screensaver from Berkeley Systems, in your browser, with its original art, sounds and William Tell music. Set the rats' training and watch them race, nap and get distracted." />
     <meta property="og:image" content="https://rat-race.heyitsjam.es/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Three rats racing on a track with the results board in the infield" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/png" href="./assets/rat-race/images/icon-color.png" />
+    <!-- apple-touch-icon.png and icon-*.png are scaled up from the module icon at build time (vite.config.ts). -->
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Rat Race",
+        "alternateName": "After Dark Rat Race",
+        "url": "https://rat-race.heyitsjam.es/",
+        "description": "A browser reconstruction of Rat Race, the 1994 After Dark 3.0 screensaver module from Berkeley Systems, using its original art, sounds and music.",
+        "image": "https://rat-race.heyitsjam.es/og-image.jpg",
+        "genre": ["Screensaver", "Racing", "Simulation"],
+        "gamePlatform": "Web browser",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Any",
+        "inLanguage": "en",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "isBasedOn": {
+          "@type": "SoftwareApplication",
+          "name": "Rat Race (After Dark 3.0)",
+          "datePublished": "1994",
+          "publisher": { "@type": "Organization", "name": "Berkeley Systems" },
+          "author": [
+            { "@type": "Person", "name": "Andrew Armstrong" },
+            { "@type": "Person", "name": "Matt Small" }
+          ]
+        }
+      }
+    </script>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <canvas id="scene" aria-label="Rat Race screensaver: rats racing on a track"></canvas>
     <div id="loading">Rat Race: Saddling up the rats…</div>
+
+    <!-- Describes the canvas game for screen readers and search engines; not shown on screen. -->
+    <section class="visually-hidden" aria-labelledby="intro-title">
+      <h1 id="intro-title">Rat Race: the After Dark screensaver, playable in your browser</h1>
+      <p>Rat Race was a screensaver module in <strong>After Dark 3.0</strong>, released by Berkeley Systems in 1994,
+        with programming by Andrew Armstrong and art by Matt Small. Rats line up at the gates and race round an oval
+        track to the William Tell Overture, but they are easily distracted: they stop to sniff, take naps and turn round
+        to run the wrong way. The results board in the infield shows Win, Place and Show, and close races go to a photo finish.</p>
+      <p>This is a faithful browser reconstruction built from the original module's artwork, sounds and music.</p>
+      <h2>How to play</h2>
+      <ul>
+        <li>Set the rats' <strong>Training</strong>, from Drop Out to Professional (plus Cracked), then press <strong>Run Race</strong>.</li>
+        <li>Choose how many rats race (3 to 8), turn on <strong>Competitive</strong> to keep every place contested, or add <strong>Expanded names</strong>.</li>
+        <li>When the race ends, <strong>Restart</strong> runs the same rats again with fresh luck; click the results board to see every rat's place and time.</li>
+        <li>Keys: Enter runs a race, Space pauses, R restarts, F goes fullscreen, M turns sound on or off, Esc returns to the menu.</li>
+      </ul>
+    </section>
 
     <div id="race-end" class="race-end" role="group" aria-label="Race over" hidden>
       <span class="mac-default-ring"><button id="end-restart" class="mac-button" type="button" title="Same rats, new race (R)">Restart</button></span>
@@ -91,7 +142,7 @@
         Programming by Andrew Armstrong. Art by Matt Small.</p>
       <p>All artwork, sounds and music are the original resources, recovered from the module and the shared
         AD 3.0 Sound library. Timing, layout and behaviour are partly reconstructed; see docs/RECONSTRUCTION.md.</p>
-      <p class="hint">Keys: Enter run race · Space pause · R restart · F fullscreen · M sound · T track · Esc menu.</p>
+      <p class="hint">Keys: Enter run race · Space pause · R restart · F fullscreen · M sound · Esc menu.</p>
     </section>
 
     <button id="sound-hint" type="button" hidden>Click anywhere to turn on sound</button>
