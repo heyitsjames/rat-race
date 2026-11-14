@@ -72,7 +72,11 @@ async function main(): Promise<void> {
     lanes = lanesFor(settings.rats);
     const rats = settings.rats;
     vp = computeViewport(innerWidth, innerHeight, devicePixelRatio || 1, lanes);
-    const names = settings.expandedNames ? [...labels['2000'], ...expandedNames] : labels['2000'];
+    const names = settings.onlyExpandedNames
+      ? expandedNames
+      : settings.expandedNames
+        ? [...labels['2000'], ...expandedNames]
+        : labels['2000'];
     return new RaceSeries(newSeed(), names, () => settings.training, new Track(vp.width, vp.height, lanes), {
       once: true,
       introPlaying: () => audio.currentMusic === 'intro',
@@ -104,6 +108,7 @@ async function main(): Promise<void> {
     trainingLabel: trainingLabel(settings.training),
     competitive: settings.competitive,
     expandedNames: settings.expandedNames,
+    onlyExpandedNames: settings.onlyExpandedNames,
     rats: settings.rats,
     sound: settings.sound,
     volume: Math.round(settings.volume * 100) / 100,
@@ -218,6 +223,7 @@ async function main(): Promise<void> {
   const trainingOut = $<HTMLOutputElement>('training-label');
   const competitive = $<HTMLInputElement>('competitive');
   const expanded = $<HTMLInputElement>('expanded-names');
+  const onlyExpanded = $<HTMLInputElement>('only-expanded-names');
   const menuLayer = $('menu-layer');
   const menuVolumeIcon = $<HTMLImageElement>('menu-volume-icon');
   const menuHelp = $('menu-help');
@@ -249,7 +255,10 @@ async function main(): Promise<void> {
     ratCount.set(settings.rats);
     ratsOut.textContent = String(settings.rats);
     competitive.checked = settings.competitive;
-    expanded.checked = settings.expandedNames;
+    // Only expanded names already includes them, so Expanded names shows checked and greyed out.
+    onlyExpanded.checked = settings.onlyExpandedNames;
+    expanded.checked = settings.expandedNames || settings.onlyExpandedNames;
+    expanded.disabled = settings.onlyExpandedNames;
     const step = volumeStep(settings.sound, settings.volume);
     menuVolumeIcon.src = volumeIcon(step);
     $('menu-volume').title = step === 0 ? 'Sound off' : `Sound volume ${step} of 7`;
@@ -380,6 +389,11 @@ async function main(): Promise<void> {
     settings.expandedNames = expanded.checked;
     commit();
     // Like Rats, only settable from the menu: redraw the names on the board behind it.
+    if (!running) series = makeSeries();
+  };
+  onlyExpanded.onchange = () => {
+    settings.onlyExpandedNames = onlyExpanded.checked;
+    commit();
     if (!running) series = makeSeries();
   };
   // The speaker steps through the control panel's volume icons: off, 1, 2, 3, 5, 7.

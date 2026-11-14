@@ -10,6 +10,8 @@ export interface Settings {
   competitive: boolean;
   /** Expanded names (not in the original, off by default): add data/expanded-names.json to the name draw. */
   expandedNames: boolean;
+  /** Only expanded names (not in the original, off by default): draw names from data/expanded-names.json alone. */
+  onlyExpandedNames: boolean;
   /** Rats per race, one per lane (not in the original, which always races three): 3-8. */
   rats: number;
   sound: boolean;
@@ -20,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   training: DEFAULT_TRAINING,
   competitive: false,
   expandedNames: false,
+  onlyExpandedNames: false,
   rats: DEFAULT_LANES,
   sound: true,
   volume: 0.7,
@@ -41,6 +44,7 @@ export function loadSettings(): Settings {
     out.volume = Math.min(1, Math.max(0, Number(out.volume)));
     out.competitive = !!out.competitive;
     out.expandedNames = !!out.expandedNames;
+    out.onlyExpandedNames = !!out.onlyExpandedNames;
     out.rats = Math.min(MAX_LANES, Math.max(MIN_LANES, Math.round(Number(out.rats)) || DEFAULT_LANES));
     out.sound = !!out.sound;
     return out;

@@ -299,7 +299,8 @@ HELP_EDITS = [
     ('"Race Track" determines whether or not the race track will appear.\n'
      '"Music" determines how often the music will play.\n',
      '"Competitive" determines whether or not the rats keep racing for second place after the winner crosses.\n'
-     '"Expanded names" adds more names to the list the rats are named from.\n'),
+     '"Expanded names" adds more names to the list the rats are named from.\n'
+     '"Only expanded names" names the rats from the added names alone.\n'),
     ('After 90 minutes of uninterrupted racing the track will disappear, but the tireless rats will continue racing.\n\n', ''),
 ]
 

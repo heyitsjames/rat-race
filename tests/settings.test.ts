@@ -81,6 +81,12 @@ describe('expanded names', () => {
     expect(load({}).expandedNames).toBe(false);
   });
 
+  it('only expanded names is off by default and survives a save', () => {
+    expect(DEFAULT_SETTINGS.onlyExpandedNames).toBe(false);
+    expect(load({ onlyExpandedNames: true }).onlyExpandedNames).toBe(true);
+    expect(load({}).onlyExpandedNames).toBe(false);
+  });
+
   it('only uses characters the Ratvetica font can draw, with no repeats', async () => {
     const extra: string[] = (await import('../data/expanded-names.json')).default;
     const original: string[] = (await import('../public/assets/rat-race/rat-names-and-labels.json')).default['2000'];

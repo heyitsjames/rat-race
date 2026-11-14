@@ -410,6 +410,22 @@ select:focus-visible {
     var(--mac-paper);
 }
 
+.mac-check:has(input:disabled) {
+  cursor: default;
+  color: var(--mac-shadow);
+}
+
+.mac-check input:disabled + .mac-box {
+  border-color: var(--mac-shadow);
+}
+
+.mac-check input:checked:disabled + .mac-box {
+  background:
+    linear-gradient(45deg, transparent calc(50% - 0.6px), var(--mac-shadow) calc(50% - 0.6px) calc(50% + 0.6px), transparent calc(50% + 0.6px)),
+    linear-gradient(-45deg, transparent calc(50% - 0.6px), var(--mac-shadow) calc(50% - 0.6px) calc(50% + 0.6px), transparent calc(50% + 0.6px)),
+    var(--mac-paper);
+}
+
 .mac-check input:focus-visible + .mac-box {
   outline: 1px solid var(--mac-ink);
   outline-offset: 1px;
