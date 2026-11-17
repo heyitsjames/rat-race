@@ -1,14 +1,13 @@
-import { DEFAULT_LANES, MAX_LANES, MIN_LANES } from './simulation/track';
-import { DEFAULT_TRAINING } from './simulation/training';
+import { MAX_LANES, MIN_LANES } from './simulation/track';
 
 export interface Settings {
   training: number;
   /**
-   * Competitive mode (not in the original, off by default): rats keep racing normally after
+   * Competitive mode (not in the original, on by default): rats keep racing normally after
    * the winner crosses, so 2nd and 3rd are still contested, and every finish plays the ending.
    */
   competitive: boolean;
-  /** Expanded names (not in the original, off by default): add data/expanded-names.json to the name draw. */
+  /** Expanded names (not in the original, on by default): add data/expanded-names.json to the name draw. */
   expandedNames: boolean;
   /** Only expanded names (not in the original, off by default): draw names from data/expanded-names.json alone. */
   onlyExpandedNames: boolean;
@@ -18,12 +17,16 @@ export interface Settings {
   volume: number;
 }
 
+/**
+ * The remake's defaults, not the original's (Collegiate, 3 rats): Cracked, 8 rats,
+ * competitive and expanded names, for a busier, closer race out of the box.
+ */
 export const DEFAULT_SETTINGS: Settings = {
-  training: DEFAULT_TRAINING,
-  competitive: false,
-  expandedNames: false,
+  training: 100,
+  competitive: true,
+  expandedNames: true,
   onlyExpandedNames: false,
-  rats: DEFAULT_LANES,
+  rats: MAX_LANES,
   sound: true,
   volume: 0.7,
 };
@@ -45,7 +48,7 @@ export function loadSettings(): Settings {
     out.competitive = !!out.competitive;
     out.expandedNames = !!out.expandedNames;
     out.onlyExpandedNames = !!out.onlyExpandedNames;
-    out.rats = Math.min(MAX_LANES, Math.max(MIN_LANES, Math.round(Number(out.rats)) || DEFAULT_LANES));
+    out.rats = Math.min(MAX_LANES, Math.max(MIN_LANES, Math.round(Number(out.rats)) || DEFAULT_SETTINGS.rats));
     out.sound = !!out.sound;
     return out;
   } catch {

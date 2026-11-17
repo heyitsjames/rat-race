@@ -45,21 +45,28 @@ describe('rats per race', () => {
       Object.defineProperty(globalThis, 'localStorage', { value: prev, configurable: true });
     }
   };
-  it('defaults to the original three', () => {
-    expect(DEFAULT_SETTINGS.rats).toBe(3);
-    expect(load({}).rats).toBe(3);
+  it('defaults to eight', () => {
+    expect(DEFAULT_SETTINGS.rats).toBe(8);
+    expect(load({}).rats).toBe(8);
   });
   it('keeps a saved count from 3 to 8 and clamps anything else', () => {
     expect(load({ rats: 6 }).rats).toBe(6);
     expect(load({ rats: 12 }).rats).toBe(8);
     expect(load({ rats: 1 }).rats).toBe(3);
-    expect(load({ rats: 'lots' }).rats).toBe(3);
+    expect(load({ rats: 'lots' }).rats).toBe(8);
+  });
+});
+
+describe('training', () => {
+  it('defaults to Cracked', async () => {
+    const { trainingLabel } = await import('../src/simulation/training');
+    expect(trainingLabel(DEFAULT_SETTINGS.training)).toBe('Cracked');
   });
 });
 
 describe('competitive mode', () => {
-  it('is off by default', () => {
-    expect(DEFAULT_SETTINGS.competitive).toBe(false);
+  it('is on by default', () => {
+    expect(DEFAULT_SETTINGS.competitive).toBe(true);
   });
 });
 
@@ -74,11 +81,12 @@ describe('expanded names', () => {
       Object.defineProperty(globalThis, 'localStorage', { value: prev, configurable: true });
     }
   };
-  it('is off by default and survives a save', () => {
-    expect(DEFAULT_SETTINGS.expandedNames).toBe(false);
+  it('is on by default and survives a save', () => {
+    expect(DEFAULT_SETTINGS.expandedNames).toBe(true);
     expect(load({ expandedNames: true }).expandedNames).toBe(true);
     expect(load({ expandedNames: 'yes' }).expandedNames).toBe(true);
-    expect(load({}).expandedNames).toBe(false);
+    expect(load({}).expandedNames).toBe(true);
+    expect(load({ expandedNames: false }).expandedNames).toBe(false);
   });
 
   it('only expanded names is off by default and survives a save', () => {
