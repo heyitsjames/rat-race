@@ -168,8 +168,8 @@ export class SceneRenderer {
     const lh = track.laneHeight;
     // Ring plus the full-width starting chute along the bottom.
     this.fill(this.trackPattern, () => {
-      ctx.roundRect(m, m, W - 2 * m, H - 2 * m, R);
-      ctx.roundRect(m + tw, m + tw, W - 2 * (m + tw), H - 2 * (m + tw), R - tw);
+      roundRect(ctx, m, m, W - 2 * m, H - 2 * m, R);
+      roundRect(ctx, m + tw, m + tw, W - 2 * (m + tw), H - 2 * (m + tw), R - tw);
     }, 'evenodd');
     this.fill(this.trackPattern, () => ctx.rect(m, H - m - tw, W - 2 * m, tw));
     // Lane dividers: around the loop, and straight across the chute.
@@ -178,7 +178,7 @@ export class SceneRenderer {
     for (let i = 1; i < track.lanes; i++) {
       const d = i * lh;
       ctx.beginPath();
-      ctx.roundRect(m + d, m + d, W - 2 * (m + d), H - 2 * (m + d), R - d);
+      roundRect(ctx, m + d, m + d, W - 2 * (m + d), H - 2 * (m + d), R - d);
       ctx.stroke();
       const y = Math.round(H - m - d) + 0.5;
       ctx.beginPath();
@@ -392,4 +392,19 @@ export class SceneRenderer {
       this.font.drawCentered(ctx, text, cx, y, '#fff');
     }
   }
+}
+
+/**
+ * Rounded-rectangle subpath with one radius for every corner. Uses arcTo
+ * rather than ctx.roundRect, which older browsers (Chrome < 99, Safari < 16)
+ * don't have.
+ */
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
 }
