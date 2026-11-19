@@ -346,7 +346,7 @@ async function main(): Promise<void> {
   $('end-restart').onclick = restart;
   $('end-new-race').onclick = () => showMenu('new-race');
   // Once the race is over, clicking or tapping the results board switches between
-  // WIN / PLACE / SHOW and each rat's place and time.
+  // each rat's place and its place with its time.
   const onBoard = (e: MouseEvent) => {
     const b = scene.boardRect;
     if (!running || !series.done || inspector.active || !b) return false;

@@ -41,8 +41,6 @@ export function sceneTransform(ctx: CanvasRenderingContext2D, vp: Viewport): voi
 }
 
 const [PHOTO, FINISH] = labels['2002'];
-/** RatN 2003: W I N / P L A C E / S H O W. */
-const PLACE_LABELS = labels['2003'];
 
 /** 1st, 2nd, 3rd, 4th ... */
 export function ordinal(n: number): string {
@@ -93,7 +91,7 @@ export class SceneRenderer {
   private grass: CanvasPattern | null;
   private trackPattern: CanvasPattern | null;
   private boardImages = new Map<number, HTMLCanvasElement>();
-  /** Results board shows each finisher's place and time (from the gates) instead of WIN / PLACE / SHOW. */
+  /** Results board adds each finisher's time (from the gates) to its place. */
   showTimes = false;
   /** Where the results board was last drawn, in scene pixels (null before the first draw). */
   boardRect: { x: number; y: number; w: number; h: number } | null = null;
@@ -138,10 +136,11 @@ export class SceneRenderer {
     this.drawPipes(track);
 
     // The board always shows this race's entrants, inner lane at the top; a photo
-    // finish replaces the name panel with the photo for 3 s. As each of the first
-    // three crosses the line its row gains WIN / PLACE / SHOW under the name
-    // (RR_D2 0x07E4-0x082C: the row takes a counter that starts at 1 and counts up
-    // with each finisher; RR_D1 0x0F16 draws that string of RatN 2003).
+    // finish replaces the name panel with the photo for 3 s. As each rat crosses
+    // the line its row gains its place (1st, 2nd ...) under the name. The original
+    // showed WIN / PLACE / SHOW (RR_D2 0x07E4-0x082C: the row takes a counter that
+    // starts at 1 and counts up with each finisher; RR_D1 0x0F16 draws that string
+    // of RatN 2003).
     const entrants = [...race.rats].sort((a, b) => a.lane - b.lane);
     const standings = race.standings;
     const places = entrants.map((r) => (r.finished ? standings.indexOf(r) : -1));
@@ -340,14 +339,14 @@ export class SceneRenderer {
       if (photoRace && k < rows) return;
       const { px, wellY } = slot(k);
       const lines = this.font.wrap(p.name, b.panel.w - 2 * BOARD_PANEL_PADDING);
-      // WIN / PLACE / SHOW for the top three; every later finisher gets the photo
-      // finish's own "F I N I S H" (remake addition: the original board had three rows).
+      // Each finisher's place, 1st to nth (remake change: the original board showed
+      // WIN / PLACE / SHOW, RatN 2003, for its three rats).
       const place = places[k] ?? -1;
       const time = times[k];
       const label =
         place < 0 ? undefined
         : this.showTimes && time != null ? `${ordinal(place + 1)}  ${formatRaceTime(time)}`
-        : (PLACE_LABELS[place] ?? FINISH);
+        : ordinal(place + 1);
       if (label) lines.push(label);
       const centre = wellY + head.h / 2;
       const top = centre - (lines.length * BOARD_LINE_HEIGHT) / 2;
