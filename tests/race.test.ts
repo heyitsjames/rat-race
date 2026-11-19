@@ -284,9 +284,29 @@ describe('finish (RR_D1 stage 3+)', () => {
   it('calls no photo finish when the runner-up is further back', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const { race } = runRace(seed, 100, track, 1 / 30);
-      if (race.photo) continue;
+      if (race.isPhotoFinish) continue;
       expect(race.standings).toEqual(race.finishOrder);
     }
+  });
+
+  it('calls a photo finish for a close finish at any place, with any number of rats', () => {
+    let race: Race | null = null;
+    for (let seed = 30000; seed < 30400 && !race; seed++) {
+      const r = new Race({ seed, training: 100, names: NAMES, track, rats: 8 });
+      while (r.phase !== 'done') r.step(1 / 30);
+      if (r.photos.some((p) => p.place > 1)) race = r;
+    }
+    expect(race).not.toBeNull();
+    if (!race) return;
+    for (const photo of race.photos) {
+      const lead = photo.entries[0].rat;
+      expect(race.standings.indexOf(lead) + 1).toBe(photo.place);
+      for (const e of photo.entries) expect(e.behindPx).toBeLessThanOrEqual(PHOTO_FINISH_RANGE_PX);
+      // the photo's rats take the places straight after its leading rat, nose order
+      expect(race.standings.slice(photo.place - 1, photo.place - 1 + photo.entries.length)).toEqual(photo.entries.map((e) => e.rat));
+    }
+    // every rat is placed once
+    expect(new Set(race.standings).size).toBe(race.rats.length);
   });
 });
 

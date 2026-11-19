@@ -28,6 +28,7 @@ import { trainingRow } from './training';
  *  stage 3+ racing; when the winner crosses, the ending (SONG 45) plays and
  *           rats reaching the home straight head for the pipe; a photo finish
  *           (camera click, 3 s photo) if another rat is within 20 px of it.
+ *           Remake change: any close finish gets a photo, not just the winner's.
  *           Competitive mode (not in the original) holds that off until all but
  *           one rat have crossed, so 2nd place is still raced for; the last rat
  *           then runs straight home.
@@ -64,11 +65,13 @@ export interface Placing {
   silk: number;
 }
 
-/** Snapshot taken when the winner crosses with others close behind. */
+/** Snapshot taken when a rat crosses with others close behind. */
 export interface PhotoFinish {
   /** Race time (s) of the photo. */
   at: number;
-  /** Rats in the photo, best first, with how far (px) behind the winner's nose each was. */
+  /** Place (1-based) of the rat whose crossing took the photo. */
+  place: number;
+  /** Rats in the photo, best first, with how far (px) behind the leading rat's nose each was. */
   entries: { rat: Rat; behindPx: number }[];
 }
 
@@ -119,7 +122,10 @@ export class Race {
   clockMs = 0;
   /** Original g03be: distractions happen from the gates opening until the winner crosses. */
   behavioursOn = false;
-  photo: PhotoFinish | null = null;
+  /** Every photo finish this race, in the order taken. */
+  readonly photos: PhotoFinish[] = [];
+  /** Final order so far: crossing order, except that a photo locks in its rats' places. */
+  private readonly placed: Rat[] = [];
   /** Earliest staging time (ms) at which the gates may drop: intro length and gate timer. */
   readonly gatesNotBeforeMs: number;
   private readonly introPlaying: () => boolean;
@@ -170,9 +176,7 @@ export class Race {
    * position at that instant (RR_D1 0x51EA-0x52DC); everyone else by crossing.
    */
   get standings(): Rat[] {
-    if (!this.photo) return this.finishOrder;
-    const inPhoto = this.photo.entries.map((e) => e.rat);
-    return [...inPhoto, ...this.finishOrder.filter((r) => !inPhoto.includes(r))];
+    return this.placed;
   }
 
   /** The rats in this race, in lane order, to rerun them with `lineup`. */
@@ -188,13 +192,23 @@ export class Race {
     return this.winners.map(({ name, fur, silk }) => ({ name, fur, silk }));
   }
 
-  get isPhotoFinish(): boolean {
-    return this.photo !== null;
+  /** The winner's photo finish, if there was one (the original's only photo). */
+  get photo(): PhotoFinish | null {
+    return this.photos.find((p) => p.place === 1) ?? null;
   }
 
-  /** The photo-finish board shows for 3 s after the winner crosses. */
+  get isPhotoFinish(): boolean {
+    return this.photos.length > 0;
+  }
+
+  /** The newest photo, shown on the board for 3 s after it is taken. */
+  get shownPhoto(): PhotoFinish | null {
+    const last = this.photos[this.photos.length - 1];
+    return last && (this.raceTime - last.at) * 1000 < PHOTO_SHOW_MS ? last : null;
+  }
+
   get photoVisible(): boolean {
-    return !!this.photo && (this.raceTime - this.photo.at) * 1000 < PHOTO_SHOW_MS;
+    return this.shownPhoto !== null;
   }
 
   /** Remove and return events produced since the last call (audio and UI hooks). */
@@ -260,19 +274,25 @@ export class Race {
 
   /**
    * RR_D1 0x5370-0x53E0: a rat counts as "close" when it is on the leader's
-   * straight, not running the wrong way, and within 20 px of the leader.
+   * straight, not running the wrong way, and within 20 px of the leader. The
+   * close rats' places are locked in by nose position. The original only does
+   * this for the winner; the remake does it for whichever rat crosses next with
+   * no placed rat still to come, so every close finish gets a photo.
    */
-  private takePhoto(winner: Rat): void {
-    const seg = Math.floor(winner.q);
-    const len = this.track.segmentLength(seg, winner.lane);
+  private takePhoto(leader: Rat): void {
+    const seg = Math.floor(leader.q);
+    const len = this.track.segmentLength(seg, leader.lane);
     const close = this.rats
-      .filter((r) => r !== winner && r.chuteX === null && Math.floor(r.q) === seg)
+      .filter((r) => r !== leader && !r.finished && !this.placed.includes(r))
+      .filter((r) => r.chuteX === null && Math.floor(r.q) === seg)
       .filter((r) => r.mode === 'run' || r.mode === 'exit')
-      .map((rat) => ({ rat, behindPx: (winner.q - rat.q) * len }))
+      .map((rat) => ({ rat, behindPx: Math.max(0, (leader.q - rat.q) * len) }))
       .filter((e) => e.behindPx <= PHOTO_FINISH_RANGE_PX)
       .sort((a, b) => a.behindPx - b.behindPx || a.rat.lane - b.rat.lane);
     if (close.length === 0) return;
-    this.photo = { at: this.raceTime, entries: [{ rat: winner, behindPx: 0 }, ...close] };
+    const place = this.placed.indexOf(leader) + 1;
+    this.photos.push({ at: this.raceTime, place, entries: [{ rat: leader, behindPx: 0 }, ...close] });
+    for (const e of close) this.placed.push(e.rat);
     this.events.push({ type: 'photo' });
   }
 
@@ -296,10 +316,10 @@ export class Race {
     for (const { rat, t } of crossed) {
       rat.finish(t);
       this.finishOrder.push(rat);
-      if (this.finishOrder.length === 1) {
-        this.events.push({ type: 'first-finish' });
-        this.takePhoto(rat);
-      }
+      if (!this.placed.includes(rat)) this.placed.push(rat);
+      if (this.finishOrder.length === 1) this.events.push({ type: 'first-finish' });
+      // Once every placed rat is home, the next close finish is this rat's.
+      if (this.placed.every((r) => r.finished)) this.takePhoto(rat);
       this.events.push({ type: 'finish', rat, place: this.finishOrder.length, settlesAt: this.settlesAt });
     }
     // The winner crossing the line ends the distractions for everyone: the others drop

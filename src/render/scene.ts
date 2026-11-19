@@ -1,5 +1,5 @@
 import layout from '../../data/scene-layout.json';
-import type { Placing, Race } from '../simulation/race';
+import type { PhotoFinish, Placing, Race } from '../simulation/race';
 import type { Pose, Rat } from '../simulation/rat';
 import type { Track } from '../simulation/track';
 import { GATE_FRAME_MS } from '../simulation/constants';
@@ -145,7 +145,7 @@ export class SceneRenderer {
     const standings = race.standings;
     const places = entrants.map((r) => (r.finished ? standings.indexOf(r) : -1));
     const times = entrants.map((r) => r.finishTime);
-    this.drawBoard(vp, entrants, race.photoVisible ? race : null, places, times);
+    this.drawBoard(vp, entrants, race.shownPhoto, places, times);
   }
 
   private fill(pattern: CanvasPattern | null, path: () => void, rule: CanvasFillRule = 'nonzero'): void {
@@ -307,7 +307,7 @@ export class SceneRenderer {
   private drawBoard(
     vp: Viewport,
     placings: Placing[],
-    photoRace: Race | null,
+    photo: PhotoFinish | null,
     places: number[] = [],
     times: (number | null)[] = [],
   ): void {
@@ -334,9 +334,9 @@ export class SceneRenderer {
     });
 
     // A photo finish covers the first column's names; a second column keeps its own.
-    if (photoRace) this.drawPhoto(photoRace, bx0 + b.panel.x, by + b.panel.y + Math.round((panelH - b.panel.h) / 2));
+    if (photo) this.drawPhoto(photo, bx0 + b.panel.x, by + b.panel.y + Math.round((panelH - b.panel.h) / 2));
     placings.forEach((p, k) => {
-      if (photoRace && k < rows) return;
+      if (photo && k < rows) return;
       const { px, wellY } = slot(k);
       const lines = this.font.wrap(p.name, b.panel.w - 2 * BOARD_PANEL_PADDING);
       // Each finisher's place, 1st to nth (remake change: the original board showed
@@ -355,13 +355,13 @@ export class SceneRenderer {
   }
 
   /**
-   * Photo-finish still: the 1300/0 finish-line close-up with the first three
-   * running (1100/0), each set back by how far behind the winner it crossed.
+   * Photo-finish still: the 1300/0 finish-line close-up with up to three rats
+   * running (1100/0), each set back by how far behind the leading rat it was.
    * The original photo layout is not recovered; this is an approximation. It
-   * has three bands, so in bigger races it shows the winner and the two closest,
+   * has three bands, so with more rats in it it shows the leading rat and the two closest,
    * one to a band in track order (lane-mates included), centred in a taller panel.
    */
-  private drawPhoto(race: Race, px: number, py: number): void {
+  private drawPhoto(shot: PhotoFinish, px: number, py: number): void {
     const { ctx } = this;
     const p = layout.board.panel;
     const photo = frameRect(1300, 0);
@@ -371,7 +371,7 @@ export class SceneRenderer {
     ctx.rect(px, py, p.w, p.h);
     ctx.clip();
     // Top to bottom as on the track: inner lane first, and an inner lane-mate above its outer one.
-    const entries = race.photo!.entries.slice(0, layout.photo.bands.length).sort((a, b) => a.rat.lane - b.rat.lane || a.rat.side - b.rat.side);
+    const entries = shot.entries.slice(0, layout.photo.bands.length).sort((a, b) => a.rat.lane - b.rat.lane || a.rat.side - b.rat.side);
     const { sheet, rect } = animFrame('run-right', 0);
     entries.forEach(({ rat, behindPx }, i) => {
       const band = layout.photo.bands[Math.min(i, layout.photo.bands.length - 1)];
