@@ -17,7 +17,7 @@ export interface TrainingRow {
   /**
    * Odds of turning back while running the wrong way. The original reuses
    * turnAround here (RR_D2 0x12A0), so rats turn back as rarely as they turn
-   * round; only the added Cracked level sets its own.
+   * round; only the added Cracked and Rat God levels set their own.
    */
   turnBack?: number;
   /**
@@ -41,10 +41,18 @@ export const TRAINING_TABLE: readonly TrainingRow[] = [
    * rat that does turn round corrects itself fairly quickly (15% per checkpoint).
    */
   { min: 100, label: 'Cracked', turnAround: 10, nap: 30, sniff: 80, turnBack: 150, original: false },
+  /**
+   * Not in the original: above Cracked. About 7% odds of any distraction per
+   * checkpoint (Cracked 12%), and a wrong-way rat turns back quickly (27.5%).
+   */
+  { min: 120, label: 'Rat God', turnAround: 3, nap: 17, sniff: 50, turnBack: 275, original: false },
 ];
 
-/** Labels and slider stops: sUnt 1000's five, plus Cracked at 100. */
+/** Labels and slider stops: sUnt 1000's five, plus Cracked at 100 and Rat God at 120. */
 export const TRAINING_LEVELS = TRAINING_TABLE.map((r) => ({ value: r.min, label: r.label }));
+
+/** Top of the slider. */
+export const MAX_TRAINING = TRAINING_TABLE[TRAINING_TABLE.length - 1].min;
 
 /** Saved default (sVal 1000 = 70, i.e. Collegiate). */
 export const DEFAULT_TRAINING = 70;

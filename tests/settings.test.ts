@@ -28,9 +28,10 @@ describe('menu speaker', () => {
 describe('slider stops', () => {
   it('snaps a saved value to the stop it falls in', async () => {
     const { stopIndex } = await import('../src/menu');
-    const training = [0, 20, 40, 60, 80, 100];
+    const training = [0, 20, 40, 60, 80, 100, 120];
     expect(stopIndex(training, 70)).toBe(3); // saved default: Collegiate
     expect(stopIndex(training, 100)).toBe(5);
+    expect(stopIndex(training, 120)).toBe(6);
   });
 });
 
@@ -61,6 +62,18 @@ describe('training', () => {
   it('defaults to Cracked', async () => {
     const { trainingLabel } = await import('../src/simulation/training');
     expect(trainingLabel(DEFAULT_SETTINGS.training)).toBe('Cracked');
+  });
+
+  it('keeps a saved Rat God level', async () => {
+    const { trainingLabel } = await import('../src/simulation/training');
+    const store = { getItem: () => JSON.stringify({ training: 120 }) };
+    const prev = globalThis.localStorage;
+    Object.defineProperty(globalThis, 'localStorage', { value: store, configurable: true });
+    try {
+      expect(trainingLabel(loadSettings().training)).toBe('Rat God');
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', { value: prev, configurable: true });
+    }
   });
 });
 

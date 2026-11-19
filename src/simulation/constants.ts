@@ -169,7 +169,7 @@ export const CORNER_DISTRACTIONS = true;
 /**
  * Share of each lane's gate head start that its four corners repay (FAIR_CORNERS):
  * 1 repays it exactly. Training levels can set their own (TrainingRow.cornerRepay);
- * this is the default, used by Professional and Cracked.
+ * this is the default, used by Professional, Cracked and Rat God.
  *
  * Measured with tools/lane-mates-fairness.ts, 1,000 races per level and rat count
  * (4-8 rats on up to 4 lanes, two to a lane past 4): at 1 everywhere the slower

@@ -1,4 +1,5 @@
 import { MAX_LANES, MIN_LANES } from './simulation/track';
+import { MAX_TRAINING } from './simulation/training';
 
 export interface Settings {
   training: number;
@@ -43,7 +44,7 @@ export function loadSettings(): Settings {
     delete (out as { music?: unknown }).music;
     delete (out as { musicLevel?: unknown }).musicLevel;
     delete (out as { raceTrack?: unknown }).raceTrack;
-    out.training = Math.min(100, Math.max(0, Number(out.training) || 0));
+    out.training = Math.min(MAX_TRAINING, Math.max(0, Number(out.training) || 0));
     out.volume = Math.min(1, Math.max(0, Number(out.volume)));
     out.competitive = !!out.competitive;
     out.expandedNames = !!out.expandedNames;

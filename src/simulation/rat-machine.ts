@@ -351,7 +351,7 @@ function checkpoint(
   const interval = random.int(SLOWDOWN_ONE_IN) === 0 ? rerollInterval(random, STRAIGHT_STEP_DIE) : c.interval;
   let r = random.int(TRAINING_ROLL_RANGE);
   // Running the wrong way, the same roll decides whether to turn back (original:
-  // the turn-round odds; Cracked has its own).
+  // the turn-round odds; Cracked and Rat God have their own).
   const turnOdds = allowNap ? training.turnAround : (training.turnBack ?? training.turnAround);
   if (r <= turnOdds) return { interval, outcome: 'turnAround' };
   r -= turnOdds;
