@@ -59,9 +59,9 @@ describe('rats per race', () => {
 });
 
 describe('training', () => {
-  it('defaults to Cracked', async () => {
+  it('defaults to Rat God', async () => {
     const { trainingLabel } = await import('../src/simulation/training');
-    expect(trainingLabel(DEFAULT_SETTINGS.training)).toBe('Cracked');
+    expect(trainingLabel(DEFAULT_SETTINGS.training)).toBe('Rat God');
   });
 
   it('keeps a saved Rat God level', async () => {

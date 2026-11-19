@@ -19,11 +19,11 @@ export interface Settings {
 }
 
 /**
- * The remake's defaults, not the original's (Collegiate, 3 rats): Cracked, 8 rats,
+ * The remake's defaults, not the original's (Collegiate, 3 rats): Rat God, 8 rats,
  * competitive and expanded names, for a busier, closer race out of the box.
  */
 export const DEFAULT_SETTINGS: Settings = {
-  training: 100,
+  training: 120,
   competitive: true,
   expandedNames: true,
   onlyExpandedNames: false,
